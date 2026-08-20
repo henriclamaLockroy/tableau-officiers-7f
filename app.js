@@ -2449,7 +2449,7 @@ function resetAll(){
 const FEUILLE = {
   fonds: { rose:'FADBD3', bleu:'DAEEF3', jaune:'FFF2A8' },
   couleurs: { bleu:'0000FF', rouge:'FF0000', brun:'993300', noir:'000000' },
-  largeurs: [16.55, 5, 26.89, 24.66, 24.66, 24.66, 24.66, 24.66, 1.55, 3.66, 21.89, 3.66, 21.89],  // A..M
+  largeurs: [16.55, 5, 26.89, 24.66, 24.66, 24.66, 24.66, 24.66, 1.55, 3.66, 21.89],  // A..K
   hauteurs: { 17:9.9, 19:42.75, 20:42.9, 21:9.9, 22:42.9 },                            // défaut 39 (points)
   echelle: 0.63,                                                                       // échelle d'impression du classeur (63 %)
 };
@@ -2503,22 +2503,22 @@ function grilleFeuille(start){
       put(r, 4+k, c.txt, { fond: rouge, modif: c.modif, color: rouge ? 'rouge' : 'noir', b: bMain(r,4+k,satRow) });
     });
   }
-  // — Bloc « Serviteurs de table » J..M, lignes 2 à 16 —
-  put(2, 10, 'Serviteurs de table', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 4);
+  // — Bloc « Serviteurs de table » J..K, lignes 2 à 16 : 1-4, puis soupe (2) et viande dans la même colonne —
+  put(2, 10, 'Serviteurs de table', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 2);
   [[w1, 3], [w2, 10]].forEach(([w, r0]) => {
-    // numéros 1 à 4 (col J) + noms (col K)
+    const finSem = r0 + 6;   // dernière ligne du bloc de la semaine
     ['st1','st2','st3','st4'].forEach((sid, k) => {
       const r = r0 + k, c = celluleFeuille([sid], w, null, start);
-      put(r, 10, k+1, { fond:true, color:'bleu', bold:false, b: bord(B.gros, B.fin, r === r0 ? B.gros : B.fin, k === 3 ? B.gros : B.fin) });
-      put(r, 11, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, r === r0 ? B.gros : B.fin, k === 3 ? B.gros : B.fin) });
+      put(r, 10, k+1, { fond:true, color:'bleu', bold:false, b: bord(B.gros, B.fin, r === r0 ? B.gros : B.fin, k === 3 ? B.moy : B.fin) });
+      put(r, 11, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, r === r0 ? B.gros : B.fin, k === 3 ? B.moy : B.fin) });
     });
-    // « soupe » (2 lignes) et « viande », colonnes L/M
+    // « soupe » (étiquette verticale sur 2 lignes) puis « viande », sous les serviteurs
     const soupes = ['st_soupe','st_soupe2'].map(sid => celluleFeuille([sid], w, null, start));
-    put(r0, 12, 'soupe', { fond:true, color:'bleu', bold:false, size:12, rot:true, b: bord(B.fin, B.fin, B.gros, B.fin) }, 2, 1);
-    soupes.forEach((c, k) => put(r0+k, 13, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, k === 0 ? B.gros : B.fin, B.fin) }));
+    put(r0+4, 10, 'soupe', { fond:true, color:'bleu', bold:false, size:12, rot:true, b: bord(B.gros, B.fin, B.fin, B.fin) }, 2, 1);
+    soupes.forEach((c, k) => put(r0+4+k, 11, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, B.fin, B.fin) }));
     const vi = celluleFeuille(['st_viande'], w, null, start);
-    put(r0+2, 12, 'viande', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.fin, B.fin, B.fin, B.gros) });
-    put(r0+2, 13, vi.txt, { modif: vi.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
+    put(finSem, 10, 'viande', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.gros, B.fin, B.fin, B.gros) });
+    put(finSem, 11, vi.txt, { modif: vi.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
   });
   // — Bas : titre calligraphié, officiers de la semaine, chantre, Règle —
   put(18, 1, 'OFFICIERS', { font:'calli', size:36 }, 2, 3);
@@ -2533,19 +2533,19 @@ function grilleFeuille(start){
     });
   });
   // Chantre P.U. : par mois → une seule case fusionnée si les deux semaines ont les mêmes chantres, sinon deux lignes
-  put(18, 10, 'Chantre P.U', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 4);
+  put(18, 10, 'Chantre P.U', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 2);
   const ch1 = celluleFeuille(['chantre_pu','chantre_pu2'], w1, null, start);
   const ch2 = celluleFeuille(['chantre_pu','chantre_pu2'], w2, null, start);
   if (ch2.txt === ch1.txt || !ch2.txt){
-    put(19, 10, ch1.txt, { modif: ch1.modif, b: bord(B.gros, B.gros, B.fin, B.gros) }, 1, 4);
+    put(19, 10, ch1.txt, { modif: ch1.modif, size:12, b: bord(B.gros, B.gros, B.fin, B.gros) }, 1, 2);
   } else {
-    put(19, 10, ch1.txt, { modif: ch1.modif, b: bord(B.gros, B.gros, B.fin, B.fin) }, 1, 4);
-    put(20, 10, ch2.txt, { modif: ch2.modif, b: bord(B.gros, B.gros, B.fin, B.gros) }, 1, 4);
+    put(19, 10, ch1.txt, { modif: ch1.modif, size:12, b: bord(B.gros, B.gros, B.fin, B.fin) }, 1, 2);
+    put(20, 10, ch2.txt, { modif: ch2.modif, size:12, b: bord(B.gros, B.gros, B.fin, B.gros) }, 1, 2);
   }
   const lr = celluleFeuille(['lecture_regle'], w1, null, start), rr = celluleFeuille(['lecture_regle2'], w1, null, start);
   put(22, 4, 'Lecture de la Sainte Règle', { fond:true, color:'bleu', b: bord(B.gros, B.fin, B.gros, B.gros) }, 1, 4);
   put(22, 8, lr.txt + (rr.txt ? ' / ' + rr.txt : ''), { modif: lr.modif || rr.modif, b: bord(B.fin, B.gros, B.gros, B.gros) });
-  return { start, couleur, cells, nbCols: 13, nbRows: 22 };
+  return { start, couleur, cells, nbCols: 11, nbRows: 22 };
 }
 // Première impression / export = référence pour le surlignage jaune des modifications ultérieures
 function marquerImpression(start){
@@ -2673,7 +2673,7 @@ function xlsxBlob(G, nomFeuille){
     sd += `<row r="${r}" ht="${h}" customHeight="1">` + cs.map(x => `<c r="${colLettre(x.c-1)}${r}" s="${x.s}" t="inlineStr"><is><t xml:space="preserve">${esc(x.v)}</t></is></c>`).join('') + `</row>`;
   }
   const cols = FEUILLE.largeurs.map((w,i) => `<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('');
-  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:M22"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr baseColWidth="10" defaultColWidth="11.44140625" defaultRowHeight="18"/><cols>${cols}</cols><sheetData>${sd}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<printOptions horizontalCentered="1" verticalCentered="1"/><pageMargins left="0.3937" right="0.3937" top="0.3937" bottom="0.3937" header="0" footer="0"/><pageSetup paperSize="9" scale="63" orientation="landscape" fitToWidth="1" fitToHeight="1"/></worksheet>`;
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:K22"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr baseColWidth="10" defaultColWidth="11.44140625" defaultRowHeight="18"/><cols>${cols}</cols><sheetData>${sd}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<printOptions horizontalCentered="1" verticalCentered="1"/><pageMargins left="0.3937" right="0.3937" top="0.3937" bottom="0.3937" header="0" footer="0"/><pageSetup paperSize="9" scale="63" orientation="landscape" fitToWidth="1" fitToHeight="1"/></worksheet>`;
   const files = {
     '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
     '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
