@@ -1,0 +1,161 @@
+TABLEAU DES OFFICIERS
+=====================
+
+POUR OUVRIR L'OUTIL
+  Double-cliquer sur le fichier « index.html » (garder les 6 fichiers ensemble,
+  dont « archive.js » qui contient l'historique 2019-2026 du tableau).
+  Il s'ouvre dans le navigateur (Edge ou Chrome). Fonctionne sans internet
+  (avec internet, les polices du site de l'abbaye s'affichent en plus).
+
+PREMIÈRE OUVERTURE
+  L'historique complet du « tableau des officiers » (avril 2019 → août 2026)
+  est chargé : statistiques et « dernière fois » depuis 2019, fiches créées
+  pour les frères de l'archive (ceux qui n'apparaissent plus sont des « anciens » :
+  jamais proposés, visibles avec « voir les anciens », à supprimer d'un coup ou un
+  par un), et les fiches complétées d'après les services réellement rendus
+  (capacités, francophone). À relire dans « Moines ».
+  Un frère qui quitte la communauté : supprimer sa fiche (✕) — ses services restent
+  inscrits sur les feuilles passées, sous son nom.
+  La quinzaine du 9 au 22 août 2026 est chargée telle qu'affichée (classeur OFFICIERS).
+
+LES ONGLETS
+  Planning ............ la feuille bimensuelle : « Remplir les cases » (remplit
+                        les cases vides et remplace les absents, sauf 🔒 et homélie),
+                        remplacer, verrouiller, saisir les fêtes, ajuster la vaisselle,
+                        imprimer ou télécharger en Excel (mise en page identique au
+                        classeur OFFICIERS : rose / bleu, Book Antiqua, blocs).
+                        Cliquer sur l'onglet ramène toujours à la quinzaine en cours.
+  Agenda .............. absences et séjours de la quinzaine, puis fêtes, anniversaires,
+                        anniversaires d'entrée et de sacerdoce, jubilés (horizon 4 semaines
+                        à 12 mois) — le planning n'affiche plus qu'un compteur
+  Moines .............. les fiches des frères (enregistrement automatique + bouton
+                        « Enregistrer ») : statut, absences, équipe vaisselle,
+                        naissance, fête, saint patron + sa date (affiché dans la
+                        colonne Fête de la feuille ce jour-là), entrée au monastère,
+                        profession temporaire, ordination (prêtres), rôle pour la Règle ;
+                        services possibles et fréquence max (par semaine, quinzaine, mois,
+                        trimestre ou année — les deux derniers sur 3 / 12 mois glissants).
+                        Cases bloquées automatiquement : prêtres et diacres jamais serviteur
+                        d'église, thuriféraire ni épître ; non-francophones jamais hebdomadier,
+                        lecteur, lecteur 2, chantre P.U. (et remplaçant), lecteur de table, épître
+  Apparence des fêtes . couleur, gras, italique, majuscules, taille et police
+                        de chaque type de fête (solennité, fête, dimanche, mémoire) ;
+                        ajouter ses propres types (case « solennité » = jour traité
+                        comme une solennité : Père Abbé célébrant, ligne en rouge…)
+  Vaisselle ........... les 3 équipes et le calage de la rotation 1 → 2 → 3
+  Statistiques ........ services rendus par moine, par type, par mois / année ;
+                        historique (dernière fois que chacun a rendu chaque service,
+                        filtre « qui a fait l'épître ? »), accès aux anciennes feuilles
+  Réglages ............ Père Abbé, couleur de la feuille (rose / bleu en alternance),
+                        liste des services et leurs règles, sauvegardes
+
+RÈGLES APPLIQUÉES AUTOMATIQUEMENT
+  - Père Abbé célébrant principal les dimanches et solennités ; s'il est absent,
+    le Père Prieur le remplace (les deux se choisissent dans Réglages).
+  - Célébrant principal proposé, dans l'ordre : le prêtre dont le saint du jour de
+    l'ordo porte le prénom (23 avril « St Georges et St Adalbert » → P. Georges),
+    puis le prêtre dont c'est la fête (ou le saint patron saisi dans sa fiche, ex.
+    St Raphaël Arnaiz Baron le 27 avril), l'anniversaire de naissance, d'entrée au
+    monastère ou de sacerdoce ; puis le lendemain d'un retour d'absence (sauf solennité).
+  - Jubilés (10/20/25/30/40/50/60/70/75 ans) d'entrée, de profession temporaire et
+    de sacerdoce : rappelés dans le bandeau du planning.
+  - Chantre P.U. : un chantre principal et un remplaçant PAR MOIS ; le principal du
+    mois devient le remplaçant du mois suivant. Sur la feuille, une seule case si la
+    quinzaine est dans le même mois, deux cases si elle chevauche deux mois.
+  - Lecture de la Sainte Règle : toujours les deux mêmes frères = ceux dont la case
+    « Lecture de la Sainte Règle » (resp. « — remplaçant ») est cochée dans la fiche
+    (P. Sébastien / P. Antoine) ; décochée pour tous les autres.
+  - « Vider la semaine » (dans chaque semaine) et « Vider la quinzaine » (barre du haut)
+    retirent toutes les attributions (homélies, fêtes, vaisselle conservées) pour repartir
+    d'une feuille vierge ; « ↶ Annuler » les rétablit.
+  - Fiches complétées d'après la « Liste des moines inscrits » du 22/02/2026 : naissance,
+    entrée au monastère (ancienneté), profession temporaire, ordination ; les frères à
+    l'extérieur (Latroun, Bádi, Rome…) sont « de passage » : proposés seulement pendant
+    un séjour saisi dans leur fiche.
+  - Fêtes de l'ordo : mémoires obligatoires en noir normal, mémoires facultatives
+    (« Messe : mémoire » dans l'ordo) en italique ; « Unité », « Défunts »,
+    « Rogations » (le 2e des trois jours) ; saints entre parenthèses non repris.
+  - Le célébrant du jour ne fait pas la prière universelle.
+  - Un seul service de table par semaine (lecteur / serviteurs de table, soupe,
+    viande, lecture de la Règle, vaisselle) ; les services de table et la vaisselle
+    ne pénalisent pas pour les services d'officiers.
+  - Serviteurs de table : le 1 est le serviteur en chef (compté à part) ; les trois autres
+    forment un seul service « Serviteur de table » sans distinction (une seule case dans la
+    fiche, équité mesurée sur l'ensemble), rangés du plus ancien au plus jeune — un nouveau
+    est donc naturellement toujours en 4e case. Soupe 1-2 rangés de même.
+  - La semaine où il est serviteur de table (1 à 4), un frère ne rend aucun autre service
+    d'officier, sauf thuriféraire et prière universelle (célébrant, homélie et lecture de la
+    Règle ne sont pas concernés).
+  - Au plus 2 services pieux par semaine (hors célébrant, hors table / vaisselle) ;
+    au-delà seulement si personne d'autre.
+  - Dans les listes des services pieux, seuls les autres services pieux de la semaine
+    sont affichés (table et vaisselle sont indépendants), avec la dernière et la
+    prochaine fois que le frère a rendu ce même service (« rendu le 7 février 2026 »)
+    et le nombre de fois où il l'a rendu sur les 12 derniers mois.
+  - Ordre des propositions, services pieux : priorités (Père Abbé, fête / anniversaire /
+    jubilé, retour d'absence), moines de passage, puis CE service le plus éloigné (jamais
+    rendu en tête ; rendu récemment ou à rendre dans les 3 semaines en queue), puis ceux
+    qui l'ont le moins rendu sur 12 mois, puis les moins chargés de la semaine.
+    Services de table : moins chargés de la semaine, puis moins rendu sur 12 mois, puis
+    le plus éloigné.
+  - Épître : une par semaine, inscrite sur la ligne du lundi (comme sur la feuille).
+  - 2e lecteur : case « + » facultative, jamais remplie automatiquement.
+  - L'onglet Agenda liste les absents, les moines de passage, et les fêtes,
+    anniversaires et anniversaires d'entrée au monastère à venir.
+  - Fêtes des moines : renseignées automatiquement d'après le prénom de religion
+    (St Basile = 2 janvier…) ; bouton « Fêtes d'après les prénoms » dans l'onglet
+    Moines pour les nouvelles fiches. Vérifier les prénoms à plusieurs saints
+    (Antoine, Raphaël, Robert, Thomas, Cyrille…).
+
+QUINZAINES BLOQUÉES (garde-fou)
+  Les quinzaines passées sont bloquées d'office : cliquer sur une case, une fête ou la
+  vaisselle n'ouvre plus la fenêtre de modification (un avertissement s'affiche), et
+  « Remplir » / « Vider » sont grisés. « 🔓 Débloquer pour cette fois » (barre du haut
+  ou avertissement) autorise les corrections jusqu'au changement de quinzaine ou au
+  rechargement de la page — la quinzaine se rebloque ensuite toute seule.
+  Une quinzaine en cours ou à venir peut aussi être bloquée à la main (« 🔒 Bloquer la
+  quinzaine », p. ex. une fois la feuille distribuée) ; « retirer le blocage manuel »
+  la libère définitivement.
+
+APRÈS L'AFFICHAGE
+  Dès que la feuille a été imprimée (ou exportée en Excel) une première fois,
+  toute case modifiée ensuite passe en jaune, à l'écran comme à l'impression,
+  pour attirer l'œil du frère concerné. « effacer le jaune » remet à zéro.
+
+REMPLACER UN MOINE (malade, absent…)
+  Cliquer sur son nom dans le planning : un remplaçant est proposé aussitôt
+  (le moins chargé de la semaine et des semaines voisines, compatible avec les règles).
+  Pas convaincu ? « Voir toutes les possibilités » montre tous les moines capables,
+  avec leurs services de la semaine, et signale en rouge ceux qui sont déconseillés
+  (de vaisselle cette semaine, absent, etc.).
+
+ABSENCES
+  Signaler une absence dans la fiche du moine. Ses services déjà planifiés
+  apparaissent alors en rouge sur le planning, avec un bandeau d'alerte :
+  cliquer sur chaque case rouge pour le remplacer.
+  S'il est de vaisselle cette semaine-là, l'encadré « Vaisselle » propose
+  un remplaçant hors équipe pour les seuls jours d'absence (affiché en rouge).
+
+FÊTES
+  Les fêtes de toute l'année 2026 (d'après l'ordo) et les homélies du 2e semestre
+  2026 sont déjà chargées à la première ouverture. Cliquer sur la colonne « Fête »
+  d'un jour pour saisir ou corriger la fête et son type ; cliquer sur une case
+  Homélie pour la modifier. La mise en forme suit l'onglet « Apparence des fêtes ».
+
+CAS PARTICULIERS
+  - Personne extérieure (invité) : dans la fenêtre d'affectation, champ
+    « Personne extérieure » — sans créer de fiche.
+  - Service un jour inhabituel (ex. homélie un mercredi) : cliquer sur la case « + ».
+  - Retirer un frère de la vaisselle une semaine (ex. pour le mettre lecteur de table) :
+    encadré « Vaisselle » → « ✕ semaine », puis ajouter un renfort si besoin.
+
+IMPORTANT — SAUVEGARDES
+  Les données sont enregistrées automatiquement dans le navigateur de cet ordinateur.
+  SAUVEGARDE AUTOMATIQUE (Chrome / Edge) : au premier lancement, l'application
+  propose de choisir un dossier — prendre un dossier situé dans OneDrive, Google
+  Drive ou Dropbox pour que la copie parte aussi sur le cloud. Ensuite, après
+  chaque modification, le fichier du jour (tableau-officiers-AAAA-MM-JJ.json)
+  y est réécrit tout seul ; les 10 derniers jours sont conservés. Si le navigateur
+  redemande l'accès au dossier, un badge apparaît en bas à droite : cliquer dessus.
+  État et réglage : Réglages → « Données ».
+  En secours : Réglages → « Exporter la sauvegarde » / « Importer une sauvegarde ».

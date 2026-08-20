@@ -1,0 +1,225 @@
+/* ====== Base — charte inspirée du site de l'abbaye ====== */
+* { box-sizing: border-box; }
+:root {
+  --accent: #D0021B;
+  --ink: #313131;
+  --ink-strong: #111111;
+  --line: #e1e1e1;
+  --bg: #f7f7f7;
+  --paper: #ffffff;
+}
+body {
+  margin: 0;
+  font-family: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--bg);
+}
+h1, h2, h3, h4 { font-family: 'Playfair Display', Georgia, serif; color: var(--ink-strong); font-weight: 600; }
+
+/* ====== En-tête / onglets ====== */
+#appHeader {
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 22px 0;
+}
+#brandRow {
+  display: flex; align-items: center; gap: 26px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+#logo { line-height: 1; }
+#logo .logoTitre {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700; font-size: 30px; letter-spacing: 2px;
+  color: var(--ink-strong);
+}
+#logo .logoSous {
+  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-size: 9.5px; letter-spacing: 3.2px; text-transform: uppercase;
+  color: var(--ink); margin-top: 4px; text-align: center;
+}
+#appHeader h1 {
+  margin: 0; font-size: 19px; letter-spacing: .5px; font-weight: 600;
+  color: #5a5a5a; border-left: 1px solid var(--line); padding-left: 26px;
+}
+#tabs { display: flex; gap: 22px; flex-wrap: wrap; }
+#tabs button {
+  border: none; background: none; cursor: pointer;
+  font-family: 'Open Sans', 'Segoe UI', sans-serif;
+  font-size: 12.5px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: #5a5a5a; padding: 8px 2px 10px;
+  border-bottom: 2px solid transparent;
+}
+#tabs button:hover { color: var(--ink-strong); }
+#tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+#main { padding: 18px 22px 60px; max-width: 1420px; margin: 0 auto; }
+
+/* ====== Éléments génériques ====== */
+button.btn {
+  background: var(--ink-strong); color: #fff; border: none;
+  padding: 7px 15px; border-radius: 3px; cursor: pointer;
+  font-family: 'Open Sans', 'Segoe UI', sans-serif; font-size: 12.5px; letter-spacing: .4px;
+}
+button.btn.secondary { background: #fff; color: var(--ink-strong); border: 1px solid #bdbdbd; }
+button.btn.danger { background: var(--accent); }
+button.btn.ghost { background: none; color: #9b9b9b; border: none; padding: 2px 5px; }
+button.btn.ghost:hover { color: var(--accent); }
+button.btn.small { padding: 3px 9px; font-size: 11.5px; }
+button.btn:hover { opacity: .85; }
+input, select { padding: 5px 7px; border: 1px solid #c9c9c9; border-radius: 3px; font-size: 13px; background: #fff; }
+label { font-size: 13px; }
+
+.toolbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+  padding: 10px 14px; margin-bottom: 14px;
+}
+.toolbar.compact { gap: 6px; padding: 8px 10px; }
+.toolbar.compact button.btn { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+.toolbar.compact button.btn.small { padding: 4px 8px; font-size: 11.5px; }
+.toolbar.compact input[type=date] { padding: 4px 6px; font-size: 12.5px; }
+.card {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+  padding: 14px 16px; margin-bottom: 16px;
+}
+.card h3 { margin: 0 0 10px; font-size: 17px; }
+.hint { color: #777; font-size: 12px; }
+.banner {
+  background: #fdf6e8; border: 1px solid #e0cd9a; border-radius: 4px;
+  padding: 9px 13px; margin-bottom: 12px; font-size: 12.5px;
+}
+.banner.alert { background: #fdecec; border-color: #e8b8b8; }
+.rouge { color: var(--accent); font-weight: 600; }
+.strike { text-decoration: line-through; color: #9b9b9b; }
+
+/* ====== Tables ====== */
+table.grid { border-collapse: collapse; width: 100%; background: var(--paper); }
+table.grid th, table.grid td {
+  border: 1px solid var(--line); padding: 5px 8px; text-align: left;
+  vertical-align: middle;
+}
+table.grid th {
+  background: #fafafa; font-size: 11.5px; letter-spacing: .6px; text-transform: uppercase;
+  color: #5a5a5a; font-weight: 600;
+}
+table.grid tr.weekSep td {
+  background: #f2f2f2; font-weight: 700; color: var(--ink-strong); font-size: 12.5px;
+  font-family: 'Playfair Display', Georgia, serif; letter-spacing: .5px;
+}
+/* Feuille des services : en-têtes contrastés (charte du site) */
+table.sheet th {
+  background: #313131; color: #fff; text-transform: none;
+  font-size: 12.5px; letter-spacing: .3px; font-weight: 600;
+  border-color: #313131;
+}
+table.sheet td.dateCol { background: #f2f2f2; font-weight: 600; }
+table.sheet tr.weekSep td {
+  background: #9e1622; color: #fff; border-color: #9e1622;
+  letter-spacing: 1px;
+}
+
+td.slot { cursor: pointer; min-width: 90px; }
+td.slot:hover { background: #f7f3ee; outline: 1px solid #d8cfc2; }
+td.slot .empty { color: #c9c9c9; }
+td.slot.hors { background: #fbfbf9; }
+td.slot .lock { font-size: 11px; margin-left: 4px; }
+td.slot.absCell { background: #fdecec; }
+td.slot.modif, .modif { background: #fff2a8; }
+/* Quinzaine bloquée (garde-fou) : les cases restent lisibles mais ne « s'allument » plus au survol */
+.bloquee td.slot { cursor: not-allowed; }
+.bloquee td.slot:hover { background: inherit; outline: none; }
+.bloquee table.sheet, .bloquee .vList, .bloquee .card select { opacity: .85; }
+tr.prevSat td { color: #6a6a6a; font-style: italic; }
+.feuille {
+  display: inline-block; font-size: 11.5px; padding: 3px 10px; border-radius: 12px;
+  letter-spacing: .5px; text-transform: uppercase; font-weight: 600;
+}
+.feuille.rose { background: #f8d7de; color: #8a1e35; }
+.feuille.bleu { background: #d5e3f5; color: #1e4a7a; }
+td.feteCell { min-width: 150px; }
+td.dimRow, .dimRow { color: var(--accent); font-weight: 600; }
+
+.badge {
+  display: inline-block; font-size: 10.5px; padding: 1px 6px;
+  border-radius: 9px; margin-left: 5px; vertical-align: 1px;
+}
+.badge.externe { background: #e6eef4; color: #14567c; }
+.badge.invite { background: #efe9dc; color: #6b5a1f; }
+.badge.warn { background: #fbdcdc; color: var(--accent); }
+.badge.eq { background: #e9efe0; color: #4a611c; }
+
+.twoCol { display: flex; gap: 16px; flex-wrap: wrap; }
+.twoCol > div { flex: 1 1 420px; }
+.threeCol { display: flex; gap: 16px; flex-wrap: wrap; }
+.threeCol > div { flex: 1 1 260px; }
+
+.vList { margin: 0 0 10px; padding-left: 18px; }
+.vList li { margin-bottom: 3px; }
+.sousLigne { margin: 2px 0 4px 14px; font-size: 12.5px; }
+.dpInfo { color: #14567c; font-size: 12px; }
+
+.propBox {
+  background: #f7f3ee; border: 1px solid #d8cfc2; border-radius: 4px;
+  padding: 10px 14px; margin: 10px 0;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+
+/* ====== Modale ====== */
+#modalOverlay {
+  position: fixed; inset: 0; background: rgba(17,17,17,.5);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 16px; overflow: auto; z-index: 50;
+}
+#modalOverlay.hidden { display: none; }
+#modalBox {
+  background: #fff; border-radius: 5px; padding: 20px 24px;
+  width: 100%; max-width: 780px; box-shadow: 0 8px 30px rgba(0,0,0,.35);
+}
+#modalBox h3 { margin-top: 0; }
+.modalActions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+tr.candRow { cursor: pointer; }
+tr.candRow:hover { background: #f7f3ee; }
+.capGrid td { padding: 3px 8px; }
+
+/* ====== Statistiques ====== */
+.statsWrap { overflow-x: auto; }
+.statsWrap table.grid th, .statsWrap table.grid td { font-size: 11.5px; padding: 3px 6px; }
+.statsWrap td.num { text-align: center; }
+.statsWrap td.zero { color: #d5d5d5; text-align: center; }
+.statsWrap th.rot {
+  max-width: 70px;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto; -webkit-hyphens: auto;
+}
+
+/* ====== Sauvegarde automatique : badge d'alerte (affiché seulement en cas de problème) ====== */
+#sauvChip {
+  position: fixed; bottom: 14px; right: 14px; z-index: 60;
+  background: #fdf6e8; border: 1px solid #e0cd9a; border-radius: 4px;
+  padding: 8px 12px; font-size: 12.5px; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,.15);
+}
+#sauvChip:hover { background: #f8eed3; }
+@media print { #sauvChip { display: none !important; } }
+
+/* ====== Impression : feuille « OFFICIERS DE LA SEMAINE » (mise en page du classeur OFFICIERS.xlsx) ====== */
+#printView { display: none; }
+@media print {
+  /* marge 0 : le navigateur n'imprime alors ni date, ni titre, ni adresse en en-tête / pied de page ;
+     les marges réelles de la feuille Excel (6 mm / 3 mm / 4 mm) sont portées par #printView */
+  @page { size: A4 landscape; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body > *:not(#printView) { display: none !important; }
+  #printView { display: flex; justify-content: center; align-items: center; box-sizing: border-box; width: 297mm; height: 210mm; padding: 3mm 6mm 4mm 6mm; }
+}
+#printView table.of {
+  border-collapse: collapse; table-layout: fixed;
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, 'URW Palladio L', serif;
+}
+#printView table.of td {
+  font-weight: 700; text-align: center; vertical-align: middle;
+  padding: 0 2px; overflow: hidden; word-wrap: break-word; line-height: 1.1;
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}

@@ -1,0 +1,5 @@
+# Ne pas publier sur GitHub (dépôt public) :
+EN-CAS-DE-PROBLEME.txt
+Planning-services-moines.zip
+*.json
+~$*
