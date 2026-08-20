@@ -22,8 +22,11 @@ LES ONGLETS
   Planning ............ la feuille bimensuelle : « Remplir les cases » (remplit
                         les cases vides et remplace les absents, sauf 🔒 et homélie),
                         remplacer, verrouiller, saisir les fêtes, ajuster la vaisselle,
-                        imprimer ou télécharger en Excel (mise en page identique au
-                        classeur OFFICIERS : rose / bleu, Book Antiqua, blocs).
+                        imprimer ou télécharger en Excel (mise en page du classeur
+                        « tableau des officiers v2 » : rose / bleu, Book Antiqua,
+                        dimanches et solennités en rouge sur fond coloré, serviteurs
+                        de table numérotés avec étiquettes verticales soupe / viande /
+                        3e plat, titre calligraphié).
                         Cliquer sur l'onglet ramène toujours à la quinzaine en cours.
   Agenda .............. absences et séjours de la quinzaine, puis fêtes, anniversaires,
                         anniversaires d'entrée et de sacerdoce, jubilés (horizon 4 semaines

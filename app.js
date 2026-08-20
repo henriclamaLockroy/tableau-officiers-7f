@@ -2441,13 +2441,17 @@ function resetAll(){
    quinzaine, dimanches et solennités en rouge, bloc « Serviteurs de table » à droite, titre
    « OFFICIERS DE LA SEMAINE » en Calligrapher, officiers de la semaine et Lecture de la Règle en bas.
    Le même modèle de grille sert à l'impression (HTML) et à l'export Excel. */
+/* Modèle v2 (classeur « tableau des officiers v2.xlsx », onglet « tableau bleu ») :
+   13 colonnes A..M — bloc des jours A..H (15 lignes samedi → samedi, sans bandes de séparation),
+   bloc « Serviteurs de table » J..M (numéros 1-5 + « 3e plat », « soupe » ×3 + « viande » en
+   étiquettes verticales), titre Calligrapher en bas à gauche, officiers de la semaine + Chantre
+   P.U. + Lecture de la Règle en bas. Impression : échelle 63 %, marges 1 cm, centré. */
 const FEUILLE = {
-  fonds: { rose:'FADBD3', bleu:'DEEBF7', jaune:'FFF2A8' },
+  fonds: { rose:'FADBD3', bleu:'DAEEF3', jaune:'FFF2A8' },
   couleurs: { bleu:'0000FF', rouge:'FF0000', brun:'993300', noir:'000000' },
-  largeurs: [16.44, 5, 30.55, 27.66, 27.66, 27.66, 27.66, 27.66, 1.44, 3.66, 29.66],   // A..K (unités Excel, onglet « tableau rose PU1 »)
-  hauteurs: { 17:10.2, 19:42.75, 20:43.2, 21:10.2, 22:43.2 },                          // défaut 39 (points)
-  echelle: 0.65,                                                                       // échelle d'impression du classeur (65 %)
-  // marges d'impression du classeur : gauche 6 mm, haut 3 mm, bas 4 mm, centré
+  largeurs: [16.55, 5, 26.89, 24.66, 24.66, 24.66, 24.66, 24.66, 1.55, 3.66, 21.89, 3.66, 21.89],  // A..M
+  hauteurs: { 17:9.9, 19:42.75, 20:42.9, 21:9.9, 22:42.9 },                            // défaut 39 (points)
+  echelle: 0.63,                                                                       // échelle d'impression du classeur (63 %)
 };
 // Largeur d'une colonne Excel en mm à l'impression (unité ≈ 7 px + 5 px de marge, 96 px/pouce)
 const colMm = w => (w * 7 + 5) / 96 * 25.4 * FEUILLE.echelle;
@@ -2465,7 +2469,7 @@ function celluleFeuille(sids, semaine, date, start, sep){
   }
   return { txt: parts.join(sep || ' / '), modif: modif.length > 0 };
 }
-// Grille : liste de cellules { r, c, rs, cs, v, st } (r/c à partir de 1 ; A=1 … K=11)
+// Grille : liste de cellules { r, c, rs, cs, v, st } (r/c à partir de 1 ; A=1 … M=13)
 function grilleFeuille(start){
   const w1 = start, w2 = addDays(start, 7);
   const couleur = couleurQuinzaine(start);
@@ -2473,75 +2477,80 @@ function grilleFeuille(start){
   const put = (r, c, v, st, rs, cs) => { cells.push({ r, c, rs: rs || 1, cs: cs || 1, v: v == null ? '' : String(v), st: st || {} }); };
   const bord = (l, r, t, b) => ({ l, r, t, b });
   const B = { fin:'thin', moy:'medium', gros:'thick', dbl:'double' };
-  // — Bloc principal A..H, lignes 1 à 16 —
+  // — Bloc principal A..H, lignes 1 à 16 (samedi précédent → samedi, sans bandes de séparation) —
   const bMain = (r, c, satRow) => bord(
     c === 1 ? B.gros : c === 4 ? B.moy : B.fin,
     c === 8 ? B.gros : c === 3 ? B.moy : B.fin,
     r === 1 ? B.gros : r === 2 ? B.moy : B.fin,
     r === 16 ? B.gros : r === 1 ? B.moy : satRow ? B.dbl : B.fin);
   const jourSvc = ['celebrant','homelie','priere_univ','epitre','thuriferaire'];
-  const entetes = ['Célébrant principal','Homélie','Prière universelle','Epître','Thuriféraire'];
+  const entetes = ['Célébrant principal',"Homélie / chant de l'évangile",'Prière universelle','Epître','Thuriféraire'];
   put(1, 1, 'Date', { fond:true, color:'bleu', b: bMain(1,1) }, 1, 3);
   put(1, 2, '', { fond:true, b: bMain(1,2) }); put(1, 3, '', { fond:true, b: bMain(1,3) });
-  entetes.forEach((h, i) => put(1, 4+i, h, { fond:true, color:'bleu', b: bMain(1, 4+i) }));
+  entetes.forEach((h, i) => put(1, 4+i, h, { fond:true, color:'bleu', size: i === 1 ? 12 : 14, b: bMain(1, 4+i) }));
   for (let i = -1; i < 14; i++){
     const r = i + 3, date = addDays(start, i), d = parseISO(date), dim = d.getDay() === 0, sam = d.getDay() === 6;
     const w = i < 0 ? addDays(start,-7) : i < 7 ? w1 : w2;
     const f = feteAffichee(date), sol = isSolennite(date);
-    const rouge = dim || sol;
+    const rouge = dim || sol;   // toute la ligne en rouge ET sur fond coloré
     const satRow = sam && r < 16;
-    put(r, 1, dim ? 'DIMANCHE' : JOURS[d.getDay()], { fond:true, color: dim ? 'brun' : 'bleu', size: dim ? 12 : 14, b: bMain(r,1,satRow) });
-    put(r, 2, d.getDate(), { fond:true, color: dim ? 'rouge' : 'noir', b: bMain(r,2,satRow) });
+    put(r, 1, dim ? 'DIMANCHE' : JOURS[d.getDay()], { fond:true, color: dim ? 'rouge' : 'bleu', size: dim ? 12 : 14, b: bMain(r,1,satRow) });
+    put(r, 2, d.getDate(), { fond:true, color: rouge ? 'rouge' : 'bleu', b: bMain(r,2,satRow) });
     const fs = f ? (state.feteStyles[f.rang] || {}) : {};
     put(r, 3, f ? (fs.majuscule ? f.nom.toUpperCase() : f.nom) : '', { fond:true, color: rouge ? 'rouge' : 'noir', italic: !!fs.italique, size: 14, b: bMain(r,3,satRow) });
     jourSvc.forEach((sid, k) => {
       const c = celluleFeuille([sid], w, date, start);
-      put(r, 4+k, c.txt, { fond: dim, modif: c.modif, color: rouge ? 'rouge' : 'noir', b: bMain(r,4+k,satRow) });
+      put(r, 4+k, c.txt, { fond: rouge, modif: c.modif, color: rouge ? 'rouge' : 'noir', b: bMain(r,4+k,satRow) });
     });
   }
-  // — Bloc « Serviteurs de table » J..K, lignes 2 à 16 —
-  const bDroit = (r, c, extraB) => bord(c === 10 ? B.gros : B.fin, c === 11 ? B.gros : B.fin, r === 2 ? B.gros : B.fin, (r === 9 || r === 16) ? B.gros : extraB || B.fin);
-  put(2, 10, 'Serviteurs de table', { fond:true, color:'bleu', b: bDroit(2,10) }, 1, 2);
-  put(2, 11, '', { fond:true, b: bDroit(2,11) });
+  // — Bloc « Serviteurs de table » J..M, lignes 2 à 16 —
+  put(2, 10, 'Serviteurs de table', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 4);
   [[w1, 3], [w2, 10]].forEach(([w, r0]) => {
-    ['st1','st2','st3','st4'].forEach((sid, k) => {
-      const c = celluleFeuille([sid], w, null, start);
-      put(r0+k, 10, k+1, { fond:true, color:'bleu', bold:false, b: bDroit(r0+k,10) });
-      put(r0+k, 11, c.txt, { modif: c.modif, b: bDroit(r0+k,11) });
+    // numéros 1 à 5 (col J) + noms (col K)
+    ['st1','st2','st3','st4','st5'].forEach((sid, k) => {
+      const r = r0 + k, c = celluleFeuille([sid], w, null, start);
+      put(r, 10, k+1, { fond:true, color:'bleu', bold:false, b: bord(B.gros, B.fin, r === r0 ? B.gros : B.fin, B.fin) });
+      put(r, 11, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, r === r0 ? B.gros : B.fin, B.fin) });
     });
-    put(r0+4, 10, 'soupe, salade', { fond:true, color:'bleu', bold:false, size:11, b: bDroit(r0+4,10) }, 2, 1);
-    put(r0+5, 10, '', { fond:true, b: bDroit(r0+5,10) });
-    const s1 = celluleFeuille(['st_soupe'], w, null, start), s2 = celluleFeuille(['st_soupe2'], w, null, start), vi = celluleFeuille(['st_viande'], w, null, start);
-    put(r0+4, 11, s1.txt, { modif: s1.modif, b: bDroit(r0+4,11) });
-    put(r0+5, 11, s2.txt, { modif: s2.modif, b: bDroit(r0+5,11) });
-    put(r0+6, 10, 'viande', { fond:true, color:'noir', bold:false, size:10, b: bDroit(r0+6,10) });
-    put(r0+6, 11, vi.txt, { modif: vi.modif, b: bDroit(r0+6,11) });
+    // « 3e plat » : étiquette verticale sur 2 lignes + 2 noms
+    const p1 = celluleFeuille(['plat3_1'], w, null, start), p2 = celluleFeuille(['plat3_2'], w, null, start);
+    put(r0+5, 10, '3e plat', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.gros, B.fin, B.fin, B.gros) }, 2, 1);
+    put(r0+5, 11, p1.txt, { modif: p1.modif, b: bord(B.fin, B.gros, B.fin, B.fin) });
+    put(r0+6, 11, p2.txt, { modif: p2.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
+    // « soupe » (3 lignes) et « viande », colonnes L/M
+    const soupes = ['st_soupe','st_soupe2','st_soupe3'].map(sid => celluleFeuille([sid], w, null, start));
+    put(r0, 12, 'soupe', { fond:true, color:'bleu', bold:false, size:12, rot:true, b: bord(B.fin, B.fin, B.gros, B.fin) }, 3, 1);
+    soupes.forEach((c, k) => put(r0+k, 13, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, k === 0 ? B.gros : B.fin, B.fin) }));
+    const vi = celluleFeuille(['st_viande'], w, null, start);
+    put(r0+3, 12, 'viande', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.fin, B.fin, B.fin, B.gros) });
+    put(r0+3, 13, vi.txt, { modif: vi.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
   });
-  // — Bas : titre, officiers de la semaine, chantre, Règle —
-  put(18, 1, 'OFFICIERS', { font:'calli', size:36, b: bord(null, B.gros, null, null) }, 2, 3);
-  put(20, 1, 'DE LA SEMAINE', { font:'calli', size:28, b: bord(null, B.gros, null, null) }, 1, 3);
-  const bBas = (r, c) => bord(c === 4 ? B.gros : c === 5 ? B.moy : B.fin, c === 8 ? B.gros : c === 4 ? B.moy : B.fin, r === 18 ? B.gros : B.fin, r === 20 ? B.gros : B.fin);
+  // — Bas : titre calligraphié, officiers de la semaine, chantre, Règle —
+  put(18, 1, 'OFFICIERS', { font:'calli', size:36 }, 2, 3);
+  put(20, 1, 'DE LA SEMAINE', { font:'calli', size:28 }, 1, 3);
+  const bBas = (r, c) => bord(c === 4 ? B.gros : B.fin, c === 8 ? B.gros : c === 4 ? B.moy : B.fin, r === 18 ? B.gros : B.fin, r === 20 ? B.gros : B.fin);
   ['Semaine','Hebdomadier','Lecteur',"Serviteur d'église",'Lecteur de table'].forEach((h, i) => put(18, 4+i, h, { fond:true, color:'bleu', b: bBas(18,4+i) }));
-  put(18, 10, 'Chantre P.U', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 2);
-  put(18, 11, '', { fond:true, b: bord(B.fin, B.gros, B.gros, B.fin) });
   [[w1, 19], [w2, 20]].forEach(([w, r]) => {
     put(r, 4, frWeekRange(w), { color:'bleu', b: bBas(r,4) });
     [['hebdomadier'], ['lecteur','lecteur2'], ['serviteur_eglise'], ['lecteur_table']].forEach((sids, k) => {
       const c = celluleFeuille(sids, w, null, start);
       put(r, 5+k, c.txt, { modif: c.modif, b: bBas(r,5+k) });
     });
-    // Chantre P.U. : par mois → si les deux semaines ont les mêmes chantres, une seule case (la 2e reste vide)
-    const ch = celluleFeuille(['chantre_pu','chantre_pu2'], w, null, start);
-    const ch1 = r === 20 ? celluleFeuille(['chantre_pu','chantre_pu2'], w1, null, start) : null;
-    const chTxt = ch1 && ch1.txt === ch.txt ? '' : ch.txt;
-    put(r, 10, chTxt, { modif: chTxt && ch.modif, b: bord(B.gros, B.gros, B.fin, r === 20 ? B.gros : B.fin) }, 1, 2);
-    put(r, 11, '', { b: bord(B.fin, B.gros, B.fin, r === 20 ? B.gros : B.fin) });
   });
+  // Chantre P.U. : par mois → une seule case fusionnée si les deux semaines ont les mêmes chantres, sinon deux lignes
+  put(18, 10, 'Chantre P.U', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 4);
+  const ch1 = celluleFeuille(['chantre_pu','chantre_pu2'], w1, null, start);
+  const ch2 = celluleFeuille(['chantre_pu','chantre_pu2'], w2, null, start);
+  if (ch2.txt === ch1.txt || !ch2.txt){
+    put(19, 10, ch1.txt, { modif: ch1.modif, b: bord(B.gros, B.gros, B.fin, B.gros) }, 1, 4);
+  } else {
+    put(19, 10, ch1.txt, { modif: ch1.modif, b: bord(B.gros, B.gros, B.fin, B.fin) }, 1, 4);
+    put(20, 10, ch2.txt, { modif: ch2.modif, b: bord(B.gros, B.gros, B.fin, B.gros) }, 1, 4);
+  }
   const lr = celluleFeuille(['lecture_regle'], w1, null, start), rr = celluleFeuille(['lecture_regle2'], w1, null, start);
-  put(22, 4, 'Lecture de la Sainte Règle', { fond:true, color:'bleu', b: bord(B.gros, B.moy, B.gros, B.gros) }, 1, 4);
-  put(22, 5, '', { fond:true, b: bord(B.fin, B.fin, B.gros, B.gros) }); put(22, 6, '', { fond:true, b: bord(B.fin, B.fin, B.gros, B.gros) }); put(22, 7, '', { fond:true, b: bord(B.fin, B.moy, B.gros, B.gros) });
-  put(22, 8, lr.txt + (rr.txt ? ' / ' + rr.txt : ''), { modif: lr.modif || rr.modif, b: bord(B.moy, B.gros, B.gros, B.gros) });
-  return { start, couleur, cells, nbCols: 11, nbRows: 22 };
+  put(22, 4, 'Lecture de la Sainte Règle', { fond:true, color:'bleu', b: bord(B.gros, B.fin, B.gros, B.gros) }, 1, 4);
+  put(22, 8, lr.txt + (rr.txt ? ' / ' + rr.txt : ''), { modif: lr.modif || rr.modif, b: bord(B.fin, B.gros, B.gros, B.gros) });
+  return { start, couleur, cells, nbCols: 13, nbRows: 22 };
 }
 // Première impression / export = référence pour le surlignage jaune des modifications ultérieures
 function marquerImpression(start){
@@ -2575,7 +2584,9 @@ function imprimer(){
       if (st.font === 'calli') css.push("font-family:Calligrapher,'Lucida Calligraphy','Brush Script MT',cursive");
       const b = st.b || {};
       for (const [k, prop] of [['l','border-left'],['r','border-right'],['t','border-top'],['b','border-bottom']]) if (b[k]) css.push(prop + ':' + bw[b[k]]);
-      html += `<td${cell.rs > 1 ? ' rowspan="' + cell.rs + '"' : ''}${cell.cs > 1 ? ' colspan="' + cell.cs + '"' : ''} style="${css.join(';')}">${esc(cell.v)}</td>`;
+      // étiquettes verticales (« soupe », « viande », « 3e plat ») : écrites de bas en haut
+      const inner = st.rot ? `<div style="writing-mode:vertical-rl;transform:rotate(180deg);margin:0 auto">${esc(cell.v)}</div>` : esc(cell.v);
+      html += `<td${cell.rs > 1 ? ' rowspan="' + cell.rs + '"' : ''}${cell.cs > 1 ? ' colspan="' + cell.cs + '"' : ''} style="${css.join(';')}">${inner}</td>`;
     }
     html += `</tr>`;
   }
@@ -2634,7 +2645,7 @@ function xlsxStyles(){
       const side = (k, tag) => b[k] ? `<${tag} style="${b[k]}"><color rgb="FF000000"/></${tag}>` : `<${tag}/>`;
       const bx = `<border>${side('l','left')}${side('r','right')}${side('t','top')}${side('b','bottom')}<diagonal/></border>`;
       const bi = idx(borders, bx);
-      const x = `<xf numFmtId="0" fontId="${fi}" fillId="${fl}" borderId="${bi}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>`;
+      const x = `<xf numFmtId="0" fontId="${fi}" fillId="${fl}" borderId="${bi}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"${o.rot ? ' textRotation="90"' : ''} wrapText="1"/></xf>`;
       return idx(xfs, x);
     },
     xml(){
@@ -2649,7 +2660,7 @@ function xlsxBlob(G, nomFeuille){
   const S = xlsxStyles();
   const fond = FEUILLE.fonds[G.couleur];
   const cellules = new Map(), merges = [];   // clé "r,c" → une seule cellule par coordonnée
-  const styleDe = st => S.xf({ font: st.font === 'calli' ? 'Calligrapher' : 'Book Antiqua', size: st.size || 14, bold: st.bold, italic: st.italic,
+  const styleDe = st => S.xf({ font: st.font === 'calli' ? 'Calligrapher' : 'Book Antiqua', size: st.size || 14, bold: st.bold, italic: st.italic, rot: st.rot,
       color: FEUILLE.couleurs[st.color || 'noir'], fill: st.modif ? FEUILLE.fonds.jaune : st.fond ? fond : null, b: st.b });
   for (const c of G.cells){
     cellules.set(c.r + ',' + c.c, { r: c.r, c: c.c, v: c.v, s: styleDe(c.st) });
@@ -2666,7 +2677,7 @@ function xlsxBlob(G, nomFeuille){
     sd += `<row r="${r}" ht="${h}" customHeight="1">` + cs.map(x => `<c r="${colLettre(x.c-1)}${r}" s="${x.s}" t="inlineStr"><is><t xml:space="preserve">${esc(x.v)}</t></is></c>`).join('') + `</row>`;
   }
   const cols = FEUILLE.largeurs.map((w,i) => `<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('');
-  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:K22"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr baseColWidth="10" defaultColWidth="11.44140625" defaultRowHeight="18"/><cols>${cols}</cols><sheetData>${sd}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<printOptions horizontalCentered="1" verticalCentered="1"/><pageMargins left="0.236" right="0.118" top="0.118" bottom="0.157" header="0" footer="0"/><pageSetup paperSize="9" scale="65" orientation="landscape" fitToWidth="1" fitToHeight="1"/></worksheet>`;
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:M22"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr baseColWidth="10" defaultColWidth="11.44140625" defaultRowHeight="18"/><cols>${cols}</cols><sheetData>${sd}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<printOptions horizontalCentered="1" verticalCentered="1"/><pageMargins left="0.3937" right="0.3937" top="0.3937" bottom="0.3937" header="0" footer="0"/><pageSetup paperSize="9" scale="63" orientation="landscape" fitToWidth="1" fitToHeight="1"/></worksheet>`;
   const files = {
     '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
     '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,

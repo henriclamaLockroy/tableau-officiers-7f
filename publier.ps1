@@ -12,7 +12,8 @@ Set-Location $PSScriptRoot
 $DossierPartage = ''   # ex. 'C:\Users\Henri\OneDrive\Tableau des Officiers\code' ('' = pas de copie)
 # ==================================
 
-$fichiers = @('index.html','app.js','archive.js','style.css','favicon.png','LISEZMOI.txt','EN-CAS-DE-PROBLEME.txt')
+$fichiers = @('index.html','app.js','archive.js','style.css','favicon.png','LISEZMOI.txt',
+              'EN-CAS-DE-PROBLEME.txt','GUIDE-DE-SECOURS.pdf','REGLES-DE-L-APPLICATION.pdf','NOTICE-POUR-LE-MOINE.pdf')
 
 # 1. numero anti-cache = date + heure de publication
 $v = Get-Date -Format 'yyyyMMddHHmm'
