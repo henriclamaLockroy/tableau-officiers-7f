@@ -2410,7 +2410,10 @@ function delService(id){
   save(); closeModal();
 }
 function exportJSON(){
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+  // La configuration de la sauvegarde automatique est propre à CETTE machine : on ne l'emporte pas dans le fichier
+  const copie = JSON.parse(JSON.stringify(state));
+  if (copie.settings) delete copie.settings.sauvAuto;
+  const blob = new Blob([JSON.stringify(copie, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'planning-moines-' + todayISO() + '.json';
@@ -2424,7 +2427,12 @@ function importJSON(input){
     try {
       const data = JSON.parse(reader.result);
       if (!data.moines || !data.services) throw new Error('format inattendu');
-      state = data; migrate(); save();
+      // La sauvegarde automatique reste celle de CETTE machine (le fichier peut venir d'un autre ordinateur)
+      const sauvLocale = state && state.settings ? state.settings.sauvAuto : undefined;
+      state = data;
+      if (!state.settings) state.settings = {};
+      state.settings.sauvAuto = sauvLocale;
+      migrate(); save();
       bannerMsg = 'Sauvegarde importée.'; render();
     } catch(e){ alert('Fichier invalide : ' + e.message); }
   };
