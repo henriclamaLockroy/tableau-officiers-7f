@@ -2506,24 +2506,19 @@ function grilleFeuille(start){
   // — Bloc « Serviteurs de table » J..M, lignes 2 à 16 —
   put(2, 10, 'Serviteurs de table', { fond:true, color:'bleu', b: bord(B.gros, B.gros, B.gros, B.fin) }, 1, 4);
   [[w1, 3], [w2, 10]].forEach(([w, r0]) => {
-    // numéros 1 à 5 (col J) + noms (col K)
-    ['st1','st2','st3','st4','st5'].forEach((sid, k) => {
+    // numéros 1 à 4 (col J) + noms (col K)
+    ['st1','st2','st3','st4'].forEach((sid, k) => {
       const r = r0 + k, c = celluleFeuille([sid], w, null, start);
-      put(r, 10, k+1, { fond:true, color:'bleu', bold:false, b: bord(B.gros, B.fin, r === r0 ? B.gros : B.fin, B.fin) });
-      put(r, 11, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, r === r0 ? B.gros : B.fin, B.fin) });
+      put(r, 10, k+1, { fond:true, color:'bleu', bold:false, b: bord(B.gros, B.fin, r === r0 ? B.gros : B.fin, k === 3 ? B.gros : B.fin) });
+      put(r, 11, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, r === r0 ? B.gros : B.fin, k === 3 ? B.gros : B.fin) });
     });
-    // « 3e plat » : étiquette verticale sur 2 lignes + 2 noms
-    const p1 = celluleFeuille(['plat3_1'], w, null, start), p2 = celluleFeuille(['plat3_2'], w, null, start);
-    put(r0+5, 10, '3e plat', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.gros, B.fin, B.fin, B.gros) }, 2, 1);
-    put(r0+5, 11, p1.txt, { modif: p1.modif, b: bord(B.fin, B.gros, B.fin, B.fin) });
-    put(r0+6, 11, p2.txt, { modif: p2.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
-    // « soupe » (3 lignes) et « viande », colonnes L/M
-    const soupes = ['st_soupe','st_soupe2','st_soupe3'].map(sid => celluleFeuille([sid], w, null, start));
-    put(r0, 12, 'soupe', { fond:true, color:'bleu', bold:false, size:12, rot:true, b: bord(B.fin, B.fin, B.gros, B.fin) }, 3, 1);
+    // « soupe » (2 lignes) et « viande », colonnes L/M
+    const soupes = ['st_soupe','st_soupe2'].map(sid => celluleFeuille([sid], w, null, start));
+    put(r0, 12, 'soupe', { fond:true, color:'bleu', bold:false, size:12, rot:true, b: bord(B.fin, B.fin, B.gros, B.fin) }, 2, 1);
     soupes.forEach((c, k) => put(r0+k, 13, c.txt, { modif: c.modif, b: bord(B.fin, B.gros, k === 0 ? B.gros : B.fin, B.fin) }));
     const vi = celluleFeuille(['st_viande'], w, null, start);
-    put(r0+3, 12, 'viande', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.fin, B.fin, B.fin, B.gros) });
-    put(r0+3, 13, vi.txt, { modif: vi.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
+    put(r0+2, 12, 'viande', { fond:true, color:'bleu', bold:false, size:11, rot:true, b: bord(B.fin, B.fin, B.fin, B.gros) });
+    put(r0+2, 13, vi.txt, { modif: vi.modif, b: bord(B.fin, B.gros, B.fin, B.gros) });
   });
   // — Bas : titre calligraphié, officiers de la semaine, chantre, Règle —
   put(18, 1, 'OFFICIERS', { font:'calli', size:36 }, 2, 3);
@@ -2581,7 +2576,8 @@ function imprimer(){
       css.push('font-size:' + ((st.size || 14) * k).toFixed(1) + 'pt');
       if (st.bold === false) css.push('font-weight:400');
       if (st.italic) css.push('font-style:italic');
-      if (st.font === 'calli') css.push("font-family:Calligrapher,'Lucida Calligraphy','Brush Script MT',cursive");
+      // titre : Calligrapher si installée, sinon la même substitution qu'Excel (serif droite, pas d'italique penchée)
+      if (st.font === 'calli') css.push("font-family:Calligrapher,'Book Antiqua','Palatino Linotype','Times New Roman',serif");
       const b = st.b || {};
       for (const [k, prop] of [['l','border-left'],['r','border-right'],['t','border-top'],['b','border-bottom']]) if (b[k]) css.push(prop + ':' + bw[b[k]]);
       // étiquettes verticales (« soupe », « viande », « 3e plat ») : écrites de bas en haut
