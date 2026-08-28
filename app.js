@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-08-20';
+const APP_BUILD = '2026-08-28';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
@@ -248,6 +248,13 @@ async function fsDel(k){ const db = await fsdb(); return new Promise((res, rej) 
 async function choisirDossierSauv(){
   try {
     const h = await showDirectoryPicker({ id: 'sauvegarde', mode: 'readwrite', startIn: 'documents' });
+    try {
+      const hm = await fsGet('dossierMoine');
+      if (hm && await h.isSameEntry(hm)){
+        alert("Ce dossier est celui de la consultation (données de l'autre ordinateur).\nLes fichiers des deux machines portent les mêmes noms et s'écraseraient mutuellement via OneDrive : choisir un autre dossier pour la sauvegarde de CET ordinateur.");
+        return;
+      }
+    } catch(e){ /* comparaison impossible : on laisse passer */ }
     await fsSet('dossier', h);
     state.settings.sauvAuto = { actif: true, dossier: h.name };
     save();
@@ -334,6 +341,53 @@ function sauvEtatHTML(){
   else if (sauvEtat.ok === false) s += ` <span class="rouge">Problème : ${esc(sauvEtat.msg)}</span> <button class="btn small secondary" onclick="reactiverSauvAuto()">Réactiver</button>`;
   else s += ` <span class="hint">En attente de la première modification.</span>`;
   return s;
+}
+/* ===== Consultation des données d'un autre ordinateur (dossier de sauvegarde partagé) =====
+   Sur le PC de suivi : on désigne une fois le dossier OneDrive partagé où l'autre ordinateur dépose
+   ses sauvegardes automatiques, puis « Recharger » importe le fichier le plus récent (remplace tout,
+   comme un import). Réglage propre à CETTE machine : jamais emporté dans les exports. */
+async function choisirDossierMoine(){
+  try {
+    const h = await showDirectoryPicker({ id: 'dossier-moine', mode: 'read', startIn: 'documents' });
+    try {
+      const hs = await fsGet('dossier');
+      if (hs && await h.isSameEntry(hs)){
+        alert("Ce dossier est celui de la sauvegarde automatique de CET ordinateur.\nChoisir le dossier partagé de l'AUTRE ordinateur (les fichiers des deux machines portent les mêmes noms et s'écraseraient mutuellement via OneDrive).");
+        return;
+      }
+    } catch(e){ /* comparaison impossible : on laisse passer */ }
+    await fsSet('dossierMoine', h);
+    state.settings.dossierMoine = { actif: true, dossier: h.name };
+    save(); render();
+    rechargerDonneesMoine();
+  } catch(e){ /* choix annulé */ }
+}
+function retirerDossierMoine(){
+  delete state.settings.dossierMoine;
+  fsDel('dossierMoine').catch(() => {});
+  save(); render();
+}
+async function rechargerDonneesMoine(){
+  try {
+    const h = await fsGet('dossierMoine');
+    if (!h){ choisirDossierMoine(); return; }
+    if (await h.requestPermission({ mode: 'read' }) !== 'granted')
+      throw new Error('accès au dossier refusé — recliquer sur le bouton et choisir « Autoriser »');
+    const noms = [];
+    for await (const n of h.keys()) if (/^tableau-officiers-\d{4}-\d{2}-\d{2}\.json$/.test(n)) noms.push(n);
+    if (!noms.length) throw new Error('aucun fichier tableau-officiers-AAAA-MM-JJ.json dans « ' + h.name + ' »');
+    noms.sort();
+    const nom = noms[noms.length - 1];
+    const f = await (await h.getFileHandle(nom)).getFile();
+    const data = JSON.parse(await f.text());
+    if (!data.moines || !data.services) throw new Error('format inattendu (' + nom + ')');
+    const quand = new Date(f.lastModified);
+    const qd = quand.toLocaleDateString('fr-FR') + ' à ' + quand.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+    if (!confirm('Remplacer toutes les données affichées sur cet ordinateur par le fichier\n« ' + nom + ' » (enregistré le ' + qd + ') ?')) return;
+    remplacerDonnees(data);
+    bannerMsg = 'Données rechargées depuis « ' + esc(nom) + ' » (dossier « ' + esc(h.name) + ' », enregistré le ' + qd + ').';
+    render();
+  } catch(e){ alert('Rechargement impossible : ' + (e.message || e)); }
 }
 // Index des affectations par moine (reconstruit après chaque sauvegarde ou ajout) — l'historique
 // depuis 2019 compte ~12 000 lignes, on évite de tout parcourir à chaque calcul
@@ -2349,6 +2403,20 @@ function renderReglages(){
       <button class="btn secondary" onclick="choisirDossierSauv()">${state.settings.sauvAuto && state.settings.sauvAuto.actif ? 'Changer de dossier…' : 'Choisir le dossier…'}</button>
       ${state.settings.sauvAuto && state.settings.sauvAuto.actif ? `<button class="btn ghost" onclick="desactiverSauvAuto()">Désactiver</button>` : ''}
     </div>` : ''}
+    ${sauvDispo() ? `<p style="margin-top:14px"><b>Consultation d'un autre ordinateur :</b> ${
+      state.settings.dossierMoine && state.settings.dossierMoine.actif
+        ? `dossier partagé <b>${esc(state.settings.dossierMoine.dossier)}</b>.`
+        : `<span class="hint">désigner le dossier OneDrive partagé où l'autre ordinateur dépose ses sauvegardes
+           automatiques, pour recharger ici d'un clic son fichier le plus récent (remplace toutes les données
+           de cet ordinateur, comme un import).</span>`
+    }</p>
+    <div class="modalActions" style="margin-top:0">
+      ${state.settings.dossierMoine && state.settings.dossierMoine.actif
+        ? `<button class="btn" onclick="rechargerDonneesMoine()">⟳ Recharger les données du moine</button>
+           <button class="btn ghost" onclick="choisirDossierMoine()">changer de dossier…</button>
+           <button class="btn ghost" onclick="retirerDossierMoine()">retirer</button>`
+        : `<button class="btn secondary" onclick="choisirDossierMoine()">Désigner le dossier partagé…</button>`}
+    </div>` : ''}
     <div class="modalActions">
       <button class="btn" onclick="exportJSON()">⬇ Exporter la sauvegarde</button>
       <label class="btn secondary" style="display:inline-block">⬆ Importer une sauvegarde
@@ -2412,7 +2480,7 @@ function delService(id){
 function exportJSON(){
   // La configuration de la sauvegarde automatique est propre à CETTE machine : on ne l'emporte pas dans le fichier
   const copie = JSON.parse(JSON.stringify(state));
-  if (copie.settings) delete copie.settings.sauvAuto;
+  if (copie.settings){ delete copie.settings.sauvAuto; delete copie.settings.dossierMoine; }
   const blob = new Blob([JSON.stringify(copie, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2427,16 +2495,22 @@ function importJSON(input){
     try {
       const data = JSON.parse(reader.result);
       if (!data.moines || !data.services) throw new Error('format inattendu');
-      // La sauvegarde automatique reste celle de CETTE machine (le fichier peut venir d'un autre ordinateur)
-      const sauvLocale = state && state.settings ? state.settings.sauvAuto : undefined;
-      state = data;
-      if (!state.settings) state.settings = {};
-      state.settings.sauvAuto = sauvLocale;
-      migrate(); save();
+      remplacerDonnees(data);
       bannerMsg = 'Sauvegarde importée.'; render();
     } catch(e){ alert('Fichier invalide : ' + e.message); }
   };
   reader.readAsText(f);
+}
+// Remplace toutes les données par celles d'un fichier, en conservant les réglages propres à CETTE
+// machine (sauvegarde automatique, dossier de consultation) : le fichier vient d'un autre ordinateur
+function remplacerDonnees(data){
+  const sauvLocale = state && state.settings ? state.settings.sauvAuto : undefined;
+  const consultLocale = state && state.settings ? state.settings.dossierMoine : undefined;
+  state = data;
+  if (!state.settings) state.settings = {};
+  state.settings.sauvAuto = sauvLocale;
+  state.settings.dossierMoine = consultLocale;
+  migrate(); save();
 }
 function resetAll(){
   if (!confirm('Tout effacer et revenir aux données de démonstration ?')) return;

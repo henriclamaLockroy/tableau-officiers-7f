@@ -162,3 +162,8 @@ IMPORTANT — SAUVEGARDES
   redemande l'accès au dossier, un badge apparaît en bas à droite : cliquer dessus.
   État et réglage : Réglages → « Données ».
   En secours : Réglages → « Exporter la sauvegarde » / « Importer une sauvegarde ».
+  CONSULTER LES DONNÉES D'UN AUTRE ORDINATEUR : Réglages → « Désigner le dossier
+  partagé… » (le dossier OneDrive où l'autre PC dépose ses sauvegardes), puis
+  « ⟳ Recharger les données du moine » : le fichier le plus récent remplace,
+  après confirmation, toutes les données de cet ordinateur (réglage propre à
+  chaque machine, jamais emporté dans les exports).
