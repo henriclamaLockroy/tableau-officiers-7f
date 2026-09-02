@@ -1333,12 +1333,15 @@ function genererManquants(start){
       const ds = lecteursRegle(s.id);
       if (ds.length === 1) { ajouterAff(slot, ds[0].id); continue; }   // même absent : la case reste la sienne
     }
-    // Chantre P.U. : même chantre tout le mois ; remplaçant = chantre principal du mois précédent
+    // Chantre P.U. : même chantre tout le mois ; remplaçant = chantre principal du mois précédent.
+    // Jamais reconduit une semaine où il est absent : la case passe alors au circuit normal
+    // (candidats présents seulement), comme pour n'importe quel service
     if (s.id === 'chantre_pu' || s.id === 'chantre_pu2'){
       const mois = moisDe(slot.semaine);
       let mid = s.id === 'chantre_pu' ? chantreDuMois('chantre_pu', mois)
         : (chantreDuMois('chantre_pu2', mois) || chantreDuMois('chantre_pu', moisPrec(mois)));
-      if (mid && monkById(mid) && monkById(mid).actif !== false) { ajouterAff(slot, mid); continue; }
+      const cm = mid && monkById(mid);
+      if (cm && cm.actif !== false && presentAllWeek(cm, slot.semaine)) { ajouterAff(slot, mid); continue; }
     }
     let c = candidats(slot);
     // Nouveau chantre principal : ni le principal ni le remplaçant du mois précédent
