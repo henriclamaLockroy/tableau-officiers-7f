@@ -97,8 +97,10 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     la case 2e lecteur est remplie automatiquement.
   - Serviteurs de table : le 1 est le serviteur en chef (compté à part) ; les trois autres
     forment un seul service « Serviteur de table » sans distinction (une seule case dans la
-    fiche, équité mesurée sur l'ensemble), rangés du plus ancien au plus jeune — un nouveau
-    est donc naturellement toujours en 4e case. Soupe 1-2 rangés de même.
+    fiche), rangés du plus ancien au plus jeune — un nouveau est donc naturellement toujours
+    en 4e case. Soupe 1-2 rangés de même. L'équité est mesurée EN COMMUN entre serviteur de
+    table (2-3-4), soupe et viande : ces services comptent comme un même tour dans l'ordre
+    des propositions (qui vient de faire la soupe passe en queue aussi pour la table).
   - La semaine où il est serviteur de table (1 à 4), un frère ne rend aucun autre service
     d'officier, sauf thuriféraire et prière universelle (célébrant, homélie et lecture de la
     Règle ne sont pas concernés).

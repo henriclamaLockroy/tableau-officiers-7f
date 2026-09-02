@@ -1147,7 +1147,8 @@ function scoreMoine(m, slot, excludeId){
   const s = serviceById(slot.serviceId);
   const cat = catService(s);
   const refKey = slot.date || slot.semaine;
-  const dp = dernierProchain(m.id, slot.serviceId, refKey, excludeId);
+  const dp = dernierProchain(m.id, slot.serviceId, refKey, excludeId,
+    EQUITE_TABLE.includes(slot.serviceId) ? EQUITE_TABLE : null);
   const jours = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000);
   // Distance (en jours) à la fois la plus proche de ce service : la dernière fois, ou la prochaine
   // si elle tombe dans la quinzaine qui suit (au-delà, elle ne compte pas)
@@ -1211,10 +1212,16 @@ function tachesSemaine(mid, semaine, excludeId, cat){
   return t;
 }
 function frCourt(s){ const d = parseISO(s); return JOURS[d.getDay()].slice(0,3) + '. ' + d.getDate() + ' ' + MOIS[d.getMonth()]; }
+/* Équité commune entre serviteur de table (2-3-4), soupe et viande : pour l'ordre des propositions,
+   ces services comptent comme un seul et même tour (un frère qui vient de faire la soupe passe en
+   queue aussi pour serviteur de table). Le serviteur en chef (1) reste compté à part ; les
+   statistiques et fréquences max restent par service. */
+const EQUITE_TABLE = ['st2','st3','st4','st5','st_soupe','st_soupe2','st_soupe3','st_viande','plat3_1','plat3_2'];
 // Dernière fois (≤ réf) et prochaine fois (> réf) où le moine fait CE service
-function dernierProchain(mid, sid, refKey, excludeId){
+// (idsOverride : services comptés ensemble pour l'occasion — équité commune des services de table)
+function dernierProchain(mid, sid, refKey, excludeId, idsOverride){
   let dernier = null, prochain = null;
-  const ids = groupeIds(sid);
+  const ids = idsOverride || groupeIds(sid);
   for (const a of affsDe(mid)){
     if (!ids.includes(a.serviceId) || a.id === excludeId) continue;
     const k = keyOf(a);
