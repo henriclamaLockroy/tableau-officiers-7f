@@ -40,7 +40,8 @@ LES ONGLETS
                         trimestre ou année — les deux derniers sur 3 / 12 mois glissants).
                         Cases bloquées automatiquement : prêtres et diacres jamais serviteur
                         d'église, thuriféraire ni épître ; non-francophones jamais hebdomadier,
-                        lecteur, lecteur 2, chantre P.U. (et remplaçant), lecteur de table, épître
+                        lecteur, lecteur 2, chantre P.U. (et remplaçant), lecteur de table, épître,
+                        prière universelle (forçage manuel possible depuis la case)
   Apparence des fêtes . couleur, gras, italique, majuscules, taille et police
                         de chaque type de fête (solennité, fête, dimanche, mémoire) ;
                         ajouter ses propres types (case « solennité » = jour traité
@@ -59,9 +60,13 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     l'ordo porte le prénom (23 avril « St Georges et St Adalbert » → P. Georges),
     puis le prêtre dont c'est la fête (ou le saint patron saisi dans sa fiche, ex.
     St Raphaël Arnaiz Baron le 27 avril), l'anniversaire de naissance, d'entrée au
-    monastère ou de sacerdoce ; puis le lendemain d'un retour d'absence (sauf solennité).
-  - Jubilés (10/20/25/30/40/50/60/70/75 ans) d'entrée, de profession temporaire et
-    de sacerdoce : rappelés dans le bandeau du planning.
+    monastère ou de sacerdoce. Un prêtre qui rentre d'absence n'est PAS proposé célébrant
+    les 2 premiers jours (sauf Père Abbé / Père Prieur un dimanche ou une solennité).
+  - Jubilés (10/20/25/30/40/50/60/70/75 ans) d'entrée, de profession temporaire,
+    de profession solennelle et de sacerdoce : rappelés dans l'agenda.
+  - Thuriféraire (frères et postulants) : attendu les dimanches, solennités ET fêtes.
+  - Un samedi sans fête ni saint patron affiche « BVM » (mémoire de la Vierge Marie)
+    sur la feuille, à l'écran comme à l'impression.
   - Chantre P.U. : un chantre principal et un remplaçant PAR MOIS ; le principal du
     mois devient le remplaçant du mois suivant. Sur la feuille, une seule case si la
     quinzaine est dans le même mois, deux cases si elle chevauche deux mois.
@@ -82,6 +87,14 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
   - Un seul service de table par semaine (lecteur / serviteurs de table, soupe,
     viande, lecture de la Règle, vaisselle) ; les services de table et la vaisselle
     ne pénalisent pas pour les services d'officiers.
+  - Un seul service HEBDOMADAIRE par frère et par semaine (hebdomadier, lecteur,
+    serviteur d'église, lecteur de table, serviteurs de table / soupe / viande
+    s'excluent mutuellement ; lecture de la Règle et chantre P.U. non concernés).
+  - Délais minimaux entre services lourds, même pour un frère qui les a peu rendus :
+    3 semaines pleines après serviteur de table (1 à 4) ou serviteur d'église ;
+    2 semaines pleines après lecteur de table, hebdomadier ou lecteur.
+  - Si le lecteur de la semaine a « toujours un 2e lecteur » coché dans sa fiche,
+    la case 2e lecteur est remplie automatiquement.
   - Serviteurs de table : le 1 est le serviteur en chef (compté à part) ; les trois autres
     forment un seul service « Serviteur de table » sans distinction (une seule case dans la
     fiche, équité mesurée sur l'ensemble), rangés du plus ancien au plus jeune — un nouveau
@@ -96,11 +109,11 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     prochaine fois que le frère a rendu ce même service (« rendu le 7 février 2026 »)
     et le nombre de fois où il l'a rendu sur les 12 derniers mois.
   - Ordre des propositions, services pieux : priorités (Père Abbé, fête / anniversaire /
-    jubilé, retour d'absence), moines de passage, puis CE service le plus éloigné (jamais
-    rendu en tête ; rendu récemment ou à rendre dans les 3 semaines en queue), puis ceux
-    qui l'ont le moins rendu sur 12 mois, puis les moins chargés de la semaine.
-    Services de table : moins chargés de la semaine, puis moins rendu sur 12 mois, puis
-    le plus éloigné.
+    jubilé), moines de passage, puis CE service le plus éloigné (jamais rendu en tête ;
+    rendu récemment ou à rendre dans la quinzaine en queue), puis les moins chargés de
+    la semaine. Le critère d'équité est l'ancienneté du dernier tour (le plus longtemps
+    sans l'avoir rendu passe devant), pas le nombre de fois sur 12 mois (affiché à titre
+    d'information). Services de table : moins chargés de la semaine, puis le plus éloigné.
   - Épître : une par semaine, inscrite sur la ligne du lundi (comme sur la feuille).
   - 2e lecteur : case « + » facultative, jamais remplie automatiquement.
   - L'onglet Agenda liste les absents, les moines de passage, et les fêtes,

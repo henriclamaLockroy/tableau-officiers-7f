@@ -67,10 +67,10 @@ function defaultServices(){
   return [
     S('celebrant','Célébrant principal','jour',{ statuts:['pretre'], ordre:1 }),
     S('homelie','Homélie','jour',{ quand:'dim_sol', statuts:['pretre','diacre'], manuel:true, ordre:2 }),
-    S('priere_univ','Prière universelle','jour',{ quand:'dim_sol', ordre:3 }),
+    S('priere_univ','Prière universelle','jour',{ quand:'dim_sol', francophone:true, ordre:3 }),
     // Épître : une par semaine, inscrite sur la ligne du lundi (convention du classeur OFFICIERS et de l'archive)
     S('epitre','Épître','jour',{ quand:'lundi', statuts:['frere','postulant'], francophone:true, ordre:4 }),
-    S('thuriferaire','Thuriféraire','jour',{ quand:'dim_sol', statuts:['frere'], ordre:5 }),
+    S('thuriferaire','Thuriféraire','jour',{ quand:'dim_sol_fete', statuts:['frere','postulant'], ordre:5 }),
     S('hebdomadier','Hebdomadier','semaine',{ statuts:['pretre','diacre','frere'], francophone:true, ordre:10 }),
     S('lecteur','Lecteur','semaine',{ groupe:'Lecteur', francophone:true, ordre:11 }),
     S('lecteur2','Lecteur 2','semaine',{ groupe:'Lecteur', optionnel:true, francophone:true, ordre:11.5 }),
@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-08-28';
+const APP_BUILD = '2026-09-02';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
@@ -548,7 +548,40 @@ function migrate(){
       for (const sid of ['st2','st3','st4']) m.capacites[sid] = Object.assign({}, u);
     }
   }
-  state.version = 17;
+  // v18 (retours du frère sur les règles, sept. 2026) :
+  //  - Prière universelle réservée aux francophones (case décochée et bloquée ; forçage manuel possible)
+  //  - thuriféraire ouvert aux postulants et attendu aussi les jours de FÊTE (pas seulement dim. + solennités)
+  //  - nouveaux champs de fiche : profession solennelle, « toujours un 2e lecteur »
+  state.moines.forEach(m => { if (m.professionSolennelle === undefined) m.professionSolennelle = null;
+                              if (m.besoin2eLecteur === undefined) m.besoin2eLecteur = false; });
+  if ((state.version || 2) < 18){
+    const pu = serviceById('priere_univ');
+    let n = 0;
+    if (pu){
+      pu.francophone = true;
+      for (const m of state.moines){
+        if (m.francophone) continue;
+        const c = m.capacites.priere_univ;
+        if (c && c.ok) { c.ok = false; n++; }
+        else if (!c) m.capacites.priere_univ = { ok:false, max:null, par:'semaine' };
+      }
+    }
+    const th = serviceById('thuriferaire');
+    if (th){
+      th.statuts = ['frere','postulant'];
+      if (th.quand === 'dim_sol') th.quand = 'dim_sol_fete';
+      // La case thuriféraire des postulants était bloquée d'office (statut interdit) : on la réouvre
+      for (const m of state.moines)
+        if (m.statut === 'postulant' && m.capacites.thuriferaire && !m.capacites.thuriferaire.ok)
+          m.capacites.thuriferaire.ok = true;
+    }
+    bannerMsg = (bannerMsg ? bannerMsg + '<br>' : '')
+      + `Règles mises à jour : prière universelle réservée aux francophones${n ? ` (${n} fiches décochées)` : ''} ; `
+      + `thuriféraire ouvert aux postulants et prévu aussi les jours de fête ; délais minimaux entre services lourds `
+      + `(3 semaines : serviteur de table / d'église ; 2 semaines : lecteur de table, hebdomadier, lecteur) ; `
+      + `un seul service hebdomadaire par frère et par semaine ; samedis sans fête notés « BVM ».`;
+  }
+  state.version = 18;
 }
 const SERVICES_FRANCOPHONES = ['hebdomadier','lecteur','lecteur2','chantre_pu','chantre_pu2','lecteur_table','epitre'];
 // Affectations à nom libre dont le nom correspond exactement à une (seule) fiche : on les rattache à la fiche
@@ -734,6 +767,7 @@ function evenementsMoine(m, date, avecProfession){
   if (m.entree && m.entree.slice(5) === md && ans(m.entree) > 0) ev.push(nAns(ans(m.entree)) + ' d\'entrée au monastère' + jub(ans(m.entree)));
   if (m.ordination && m.ordination.slice(5) === md && ans(m.ordination) > 0) ev.push(nAns(ans(m.ordination)) + ' de sacerdoce' + jub(ans(m.ordination)));
   if (avecProfession && m.profession && m.profession.slice(5) === md && JUBILES.includes(ans(m.profession))) ev.push(nAns(ans(m.profession)) + ' de profession — jubilé');
+  if (avecProfession && m.professionSolennelle && m.professionSolennelle.slice(5) === md && JUBILES.includes(ans(m.professionSolennelle))) ev.push(nAns(ans(m.professionSolennelle)) + ' de profession solennelle — jubilé');
   return ev;
 }
 function fmtFete(md){ return md ? md.slice(3) + '/' + md.slice(0,2) : ''; }   // 'MM-DD' → 'JJ/MM'
@@ -793,7 +827,7 @@ function doCompleterFetes(){
     + (r.ambigus.length ? `\n\nÀ vérifier (plusieurs saints portent ce nom) : ${r.ambigus.join(', ')}.` : '')
     + (r.inconnus.length ? `\n\nPrénom non reconnu, à saisir à la main : ${r.inconnus.join(', ')}.` : ''));
 }
-// Rentre-t-il d'absence la veille ? (le lendemain du retour, un prêtre est célébrant principal)
+// Rentre-t-il d'absence ce jour-là ? (les 2 premiers jours après son retour, un prêtre n'est pas proposé célébrant)
 function retourAbsence(m, date){
   if (m.regime === 'externe')
     return presentOn(m, date) && presentOn(m, addDays(date,-1)) && !presentOn(m, addDays(date,-2));
@@ -824,7 +858,7 @@ function abbePresent(date){
 }
 /* Priorité d'un moine pour un créneau : 0 = absolue (Père Abbé — ou Père Prieur s'il est absent — dimanche /
    solennité ; lecteur et remplaçant désignés de la Règle), 1 = saint du jour de l'ordo à son prénom,
-   1.5 = sa fête / anniversaire / anniversaire d'entrée ou de sacerdoce, 2 = lendemain de retour, 3 = aucune */
+   1.5 = sa fête / anniversaire / anniversaire d'entrée ou de sacerdoce, 3 = aucune */
 function prioSlot(m, slot){
   const s = serviceById(slot.serviceId);
   if (s && s.id === 'celebrant' && slot.date){
@@ -836,7 +870,6 @@ function prioSlot(m, slot){
     if (saintDuJourEst(m, slot.date)) return { n:1, label:'saint du jour : ' + feteOn(slot.date).nom };
     const ev = evenementsMoine(m, slot.date);
     if (ev.length) return { n:1.5, label:ev.join(', ') };
-    if (!sol && retourAbsence(m, slot.date)) return { n:2, label:'lendemain de son retour' };
   }
   if (s && (s.id === 'lecture_regle' || s.id === 'lecture_regle2') && !slot.date){
     // Lecteur et remplaçant désignés dans les fiches (case cochée) : toujours les mêmes
@@ -870,6 +903,39 @@ function conflitServiteurTable(m, slot, excludeId){
   if (COMPAT_SERVITEUR.includes(s.id) || s.conflitDejeuner) return '';
   return affs.some(a => SERVITEURS_TABLE.includes(a.serviceId)) ? 'serviteur de table cette semaine (compatible seulement avec thuriféraire et P.U.)' : '';
 }
+/* Services lourds : délai minimal entre deux tours, même si le frère l'a peu rendu.
+   3 semaines pleines après serviteur de table (1 à 4) ou serviteur d'église (pris ensemble),
+   2 semaines pleines après lecteur de table, hebdomadier ou lecteur (pris ensemble). */
+const DELAIS_SERVICES = [
+  { ids:['st1','st2','st3','st4','st5','serviteur_eglise'], semaines:3, label:"serviteur de table ou d'église" },
+  { ids:['lecteur_table','hebdomadier','lecteur','lecteur2'], semaines:2, label:'lecteur de table, hebdomadier ou lecteur' },
+];
+function conflitDelai(m, slot, excludeId){
+  for (const d of DELAIS_SERVICES){
+    if (!d.ids.includes(slot.serviceId)) continue;
+    for (const a of affsDe(m.id)){
+      if (a.id === excludeId || a.semaine === slot.semaine || !d.ids.includes(a.serviceId)) continue;
+      const ecart = Math.abs(weeksBetween(a.semaine, slot.semaine));
+      if (ecart <= d.semaines)
+        return d.label + ' la semaine du ' + frShort(a.semaine) + ' (laisser passer ' + d.semaines + ' semaines)';
+    }
+  }
+  return '';
+}
+/* Pas plus d'un service qui occupe toute la semaine (hebdomadier, lecteur, serviteur d'église,
+   lecteur de table, serviteurs de table / soupe / viande) : ces services hebdomadaires s'excluent
+   mutuellement sur une même semaine. Lecture de la Règle (frères désignés) et chantre P.U.
+   (mécanique mensuelle) ne comptent pas. */
+const SERVICES_HEBDO_EXCLUSIFS = ['hebdomadier','lecteur','lecteur2','serviteur_eglise','lecteur_table',
+  'st1','st2','st3','st4','st5','st_soupe','st_soupe2','st_soupe3','st_viande','plat3_1','plat3_2'];
+function conflitHebdo(m, slot, excludeId){
+  const s = serviceById(slot.serviceId);
+  if (!s || !SERVICES_HEBDO_EXCLUSIFS.includes(s.id)) return '';
+  const a = affsDe(m.id).find(a => a.semaine === slot.semaine && a.id !== excludeId
+    && a.serviceId !== s.id && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId)
+    && !(s.conflitDejeuner && serviceById(a.serviceId)?.conflitDejeuner));   // les paires table/repas sont déjà signalées
+  return a ? 'fait déjà « ' + (serviceById(a.serviceId)?.nom || '?') + ' » cette semaine (un seul service hebdomadaire)' : '';
+}
 // Modifié depuis la première impression / export de la feuille ? (case jaune)
 function estModifie(a, start){
   const t = state.impressions[start];
@@ -900,6 +966,8 @@ function patronsDuJour(date){
 }
 function feteAffichee(date){
   const f = feteOn(date), p = patronsDuJour(date);
+  // Samedi sans fête ni saint patron : mémoire de la Bienheureuse Vierge Marie (« BVM »)
+  if (!f && !p.length && parseISO(date).getDay() === 6) return { nom:'BVM', rang:'memoire' };
   if (!p.length) return f;
   const dejaDedans = f && p.every(x => normNom(f.nom).includes(normNom(x)));
   if (dejaDedans) return f;
@@ -1014,6 +1082,16 @@ function reasons(m, slot, excludeId){
   if (cpu) r.push(cpu);
   const cst = conflitServiteurTable(m, slot, excludeId);
   if (cst) r.push(cst);
+  const chd = conflitHebdo(m, slot, excludeId);
+  if (chd) r.push(chd);
+  const cdl = conflitDelai(m, slot, excludeId);
+  if (cdl) r.push(cdl);
+  // Un prêtre qui rentre d'absence n'est pas célébrant les 2 premiers jours (sauf le Père Abbé
+  // et le Père Prieur un dimanche / une solennité : leur règle passe devant)
+  if (s.id === 'celebrant' && slot.date
+      && (retourAbsence(m, slot.date) || retourAbsence(m, addDays(slot.date, -1)))
+      && !((parseISO(slot.date).getDay() === 0 || isSolennite(slot.date)) && (m.id === state.settings.abbeId || m.id === state.settings.prieurId)))
+    r.push("rentre d'absence (pas célébrant les 2 premiers jours)");
   if (freqAtteinte(m, s, slot, excludeId)) r.push('fréquence max atteinte');
   return r;
 }
@@ -1046,6 +1124,12 @@ function softWarns(m, slot, excludeId){
   if (cpu) w.push(cpu);
   const cst = conflitServiteurTable(m, slot, excludeId);
   if (cst) w.push(cst);
+  const chd = conflitHebdo(m, slot, excludeId);
+  if (chd) w.push(chd);
+  const cdl = conflitDelai(m, slot, excludeId);
+  if (cdl) w.push(cdl);
+  if (s.id === 'celebrant' && slot.date && (retourAbsence(m, slot.date) || retourAbsence(m, addDays(slot.date, -1))))
+    w.push("rentre d'absence (pas célébrant les 2 premiers jours)");
   if (s.francophone && !m.francophone) w.push('non francophone');
   if (freqAtteinte(m, s, slot, excludeId)) w.push('fréquence max atteinte');
   const cs = weekLoadTotal(m.id, slot.semaine, excludeId);
@@ -1053,12 +1137,12 @@ function softWarns(m, slot, excludeId){
   return w;
 }
 
-/* Tri : priorités (Père Abbé, anniversaires, retour, rotation de la Règle), puis externes
-   présents, puis les moins chargés de la semaine, puis ceux qui ont le moins rendu CE service
-   sur les 12 derniers mois, puis ceux dont CE service est le plus éloigné (jamais fait = le plus
-   éloigné ; l'a fait récemment OU va le faire bientôt = en dernier). La charge de la semaine est
-   comptée PAR CATÉGORIE (célébrant / table / officiers) : un service de table ou la vaisselle ne
-   pénalise pas pour un service d'officier. */
+/* Tri : priorités (Père Abbé, anniversaires, lecteurs désignés de la Règle), puis externes présents,
+   puis ceux dont CE service est le plus éloigné (jamais fait = le plus éloigné ; l'a fait récemment
+   OU va le faire dans la quinzaine = en dernier), puis les moins chargés de la semaine. La charge de
+   la semaine est comptée PAR CATÉGORIE (célébrant / table / officiers) : un service de table ou la
+   vaisselle ne pénalise pas pour un service d'officier. Le nombre de fois sur 12 mois reste affiché
+   à titre d'information mais n'entre plus dans le tri. */
 function scoreMoine(m, slot, excludeId){
   const s = serviceById(slot.serviceId);
   const cat = catService(s);
@@ -1066,7 +1150,7 @@ function scoreMoine(m, slot, excludeId){
   const dp = dernierProchain(m.id, slot.serviceId, refKey, excludeId);
   const jours = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000);
   // Distance (en jours) à la fois la plus proche de ce service : la dernière fois, ou la prochaine
-  // si elle tombe dans les 3 semaines qui suivent (au-delà, elle ne compte pas)
+  // si elle tombe dans la quinzaine qui suit (au-delà, elle ne compte pas)
   const aVenir = dp.prochain ? jours(refKey, dp.prochain) : Infinity;
   const prox = Math.min(dp.dernier ? jours(dp.dernier, refKey) : Infinity, aVenir <= PROCHAIN_JOURS ? aVenir : Infinity);
   const pr = prioSlot(m, slot);
@@ -1081,21 +1165,21 @@ function scoreMoine(m, slot, excludeId){
     alea: Math.random(),
   };
 }
-const PROCHAIN_JOURS = 21;   // « va le rendre prochainement » = dans les 3 semaines
+const PROCHAIN_JOURS = 14;   // « va le rendre prochainement » = dans la quinzaine qui suit
 function cmpProx(a, b){
   if (a.prox === b.prox) return 0;            // (évite NaN quand les deux valent Infinity)
   return b.prox - a.prox;                     // le plus éloigné (ou jamais fait) d'abord
 }
-/* Ordre des propositions.
+/* Ordre des propositions — le critère d'équité est l'ancienneté du dernier tour (celui qui a rendu
+   ce service il y a le plus longtemps passe devant), PAS le nombre de fois sur 12 mois.
    Services pieux (officiers, célébrant) : priorités, moines de passage, puis CE service le plus éloigné
-   (jamais fait en tête ; rendu récemment ou à rendre dans les 3 semaines en queue), puis le moins
-   souvent rendu sur 12 mois, puis le moins chargé de la semaine.
-   Services de table : priorités, moines de passage, le moins chargé de la semaine, le moins souvent
-   rendu sur 12 mois, puis le plus éloigné. */
+   (jamais fait en tête ; rendu récemment ou à rendre dans la quinzaine en queue), puis le moins
+   chargé de la semaine.
+   Services de table : priorités, moines de passage, le moins chargé de la semaine, puis le plus éloigné. */
 const cmpScore = (a,b) => a.prio - b.prio || a.externe - b.externe ||
   (a.cat === 'table'
-    ? (a.chargeSemaine - b.chargeSemaine || a.douzeMois - b.douzeMois || cmpProx(a,b))
-    : (cmpProx(a,b) || a.douzeMois - b.douzeMois || a.chargeSemaine - b.chargeSemaine))
+    ? (a.chargeSemaine - b.chargeSemaine || cmpProx(a,b))
+    : (cmpProx(a,b) || a.chargeSemaine - b.chargeSemaine))
   || a.alea - b.alea;
 
 function candidats(slot, excludeId, exclureMoineId){
@@ -1160,10 +1244,14 @@ function absentInfo(a){
 // Jour où un service quotidien est attendu : tous les jours / dimanches + solennités / chaque lundi (épître de la semaine)
 function estJourParDefaut(s, date){
   if (s.quand === 'dim_sol') return parseISO(date).getDay() === 0 || isSolennite(date);
+  if (s.quand === 'dim_sol_fete'){
+    const f = feteOn(date);
+    return parseISO(date).getDay() === 0 || isSolennite(date) || !!(f && f.rang === 'fete');
+  }
   if (s.quand === 'lundi') return parseISO(date).getDay() === 1;
   return true;
 }
-const QUAND_LABELS = { tous:'tous les jours', dim_sol:'dimanches + solennités', lundi:'chaque lundi (un par semaine)' };
+const QUAND_LABELS = { tous:'tous les jours', dim_sol:'dimanches + solennités', dim_sol_fete:'dimanches + solennités + fêtes', lundi:'chaque lundi (un par semaine)' };
 function slotsQuinzaine(start){
   const slots = [];
   for (const w of [start, addDays(start,7)])
@@ -1179,8 +1267,9 @@ function slotsQuinzaine(start){
   }
   return slots;
 }
-// Retire les affectations (non verrouillées, services non manuels) dont le moine est absent ou inactif,
-// pour qu'elles soient remplies à nouveau ; renvoie la liste de ce qui a été retiré
+// Retire les affectations (non verrouillées, services non manuels) dont le moine est absent, inactif
+// ou contredit désormais une règle stricte (fiche modifiée, nouvelle incompatibilité…), pour qu'elles
+// soient remplies à nouveau ; renvoie la liste de ce qui a été retiré
 function retirerAbsents(start){
   const fin = addDays(start,14);
   const retires = [];
@@ -1191,10 +1280,13 @@ function retirerAbsents(start){
     if (s.id === 'lecture_regle' || s.id === 'lecture_regle2') return true;   // lecteurs désignés : toujours les mêmes, même absents
     const m = monkById(a.moineId);
     const abs = absentInfo(a);
-    if (!abs && m && m.actif !== false) return true;
-    retires.push(m ? m.nom + ' (' + s.nom + (a.date ? ', ' + frShort(a.date) : '') + ')' : s.nom);
+    const regles = m && m.actif !== false ? reasons(m, { serviceId: a.serviceId, semaine: a.semaine, date: a.date }, a.id) : [];
+    if (!abs && m && m.actif !== false && !regles.length) return true;
+    retires.push(m ? m.nom + ' (' + s.nom + (a.date ? ', ' + frShort(a.date) : '')
+      + (regles.length && !abs ? ' — ' + regles[0] : '') + ')' : s.nom);
     return false;
   });
+  _affIdx = null;   // l'index doit être reconstruit avant la génération (des affectations viennent d'être retirées)
   return retires;
 }
 /* Chantre P.U. : un chantre principal et un remplaçant PAR MOIS ; le principal du mois devient le
@@ -1209,11 +1301,20 @@ function ajouterAff(slot, mid){
   state.affectations.push({ id:'a'+(state.seq.affect++), serviceId: slot.serviceId, semaine: slot.semaine, date: slot.date,
     moineId: mid, nomLibre:null, verrouille:false, modifieLe: maintenant() });
 }
+// Le lecteur de cette semaine a-t-il « toujours un 2e lecteur » coché dans sa fiche ?
+function besoin2eLecteur(semaine){
+  const a = findAssign('lecteur', semaine, null);
+  const m = a && a.moineId && monkById(a.moineId);
+  return !!(m && m.besoin2eLecteur);
+}
 function genererManquants(start){
   const nonPourvus = [];
   for (const slot of slotsQuinzaine(start)){
     const s = serviceById(slot.serviceId);
-    if (s?.manuel || s?.optionnel) continue;   // services à remplir uniquement à la main
+    // Services à remplir uniquement à la main — sauf le 2e lecteur, rempli d'office quand le lecteur
+    // de la semaine a « toujours un 2e lecteur » coché dans sa fiche
+    if (s?.manuel) continue;
+    if (s?.optionnel && !(s.id === 'lecteur2' && besoin2eLecteur(slot.semaine))) continue;
     if (findAssign(slot.serviceId, slot.semaine, slot.date)) continue;
     // Lecture de la Règle : lecteur et remplaçant désignés dans les fiches, toujours les mêmes
     if (s.id === 'lecture_regle' || s.id === 'lecture_regle2'){
@@ -1341,13 +1442,19 @@ function slotCell(sid, semaine, date, horsDefaut, start){
     const m = a.moineId && monkById(a.moineId);
     const nom = m ? m.nom : (a.nomLibre || '?');
     const abs = absentInfo(a);
-    if (abs) cls += ' absCell';
+    // Toute modification (fiche, autre case) est répercutée aussitôt : une case qui contredit désormais
+    // une règle stricte passe en rouge avec le détail — quinzaines en cours et à venir seulement
+    let regles = [];
+    if (m && (start || state.ui.sunday) >= quinzaineDe(todayISO()))
+      regles = reasons(m, { serviceId: sid, semaine, date }, a.id).filter(x => x !== 'absent sur la période' && x !== 'absent ce jour');
+    if (abs || regles.length) cls += ' absCell';
     if (estModifie(a, start || state.ui.sunday)) cls += ' modif';
     inner = esc(nom)
       + (a.verrouille ? '<span class="lock" title="Verrouillé">🔒</span>' : '')
       + (m && m.regime === 'externe' ? '<span class="badge externe">ext.</span>' : '')
       + (!m && !a.ancien ? '<span class="badge invite">invité</span>' : '')
-      + (abs ? `<span class="badge warn" title="${esc(abs)}">absent</span>` : '');
+      + (abs ? `<span class="badge warn" title="${esc(abs)}">absent</span>` : '')
+      + (regles.length ? `<span class="badge warn" title="${esc(regles.join(' · '))}">règle</span>` : '');
   } else {
     inner = `<span class="empty">${horsDefaut ? '+' : '—'}</span>`;
   }
@@ -1994,11 +2101,17 @@ function renderMoineModal(){
   <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px">
     <label>Entrée au monastère <input type="date" id="fm_entree" value="${m.entree||''}"></label>
     <label>Profession temporaire <input type="date" id="fm_prof" value="${m.profession||''}"></label>
+    <label>Profession solennelle <input type="date" id="fm_profSol" value="${m.professionSolennelle||''}"></label>
     ${m.statut === 'pretre' ? `<label>Ordination sacerdotale <input type="date" id="fm_ordi" value="${m.ordination||''}"></label>` : ''}
   </div>
+  <div style="margin-top:10px">
+    <label title="Quand ce frère est lecteur, « Remplir les cases » lui adjoint automatiquement un 2e lecteur">
+      <input type="checkbox" id="fm_lect2" ${m.besoin2eLecteur?'checked':''}> Toujours lui adjoindre un 2e lecteur (quand il est lecteur)</label>
+  </div>
   <p class="hint">Un prêtre est proposé célébrant principal le jour de sa fête (ou du saint patron), de son anniversaire,
-    de son anniversaire d'entrée et de sacerdoce. Les jubilés (${JUBILES.join('/')} ans) d'entrée, de profession et de sacerdoce
-    sont rappelés dans le bandeau du planning. L'ancienneté ordonne les serviteurs de table 2-3-4 et de soupe.</p>
+    de son anniversaire d'entrée et de sacerdoce. Les jubilés (${JUBILES.join('/')} ans) d'entrée, de profession (temporaire
+    et solennelle) et de sacerdoce sont rappelés dans le bandeau du planning. L'ancienneté ordonne les serviteurs de table
+    2-3-4 et de soupe.</p>
   <h4>Périodes ${m.regime==='externe'?'de présence (séjours)':"d'absence"}</h4>
   <table class="grid" style="max-width:440px">`;
   (m.periodes||[]).forEach((p,i) => {
@@ -2076,6 +2189,8 @@ function grabMoineForm(){
   m.naissance = $('#fm_naiss').value || null;
   m.entree = $('#fm_entree').value || null;
   m.profession = $('#fm_prof').value || null;
+  m.professionSolennelle = $('#fm_profSol').value || null;
+  m.besoin2eLecteur = $('#fm_lect2').checked;
   if ($('#fm_ordi')) m.ordination = $('#fm_ordi').value || null;
   m.patron = $('#fm_patron').value.trim() || null;
   const pd = $('#fm_patronDate').value.trim().match(/^(\d{1,2})\s*[\/\-.]\s*(\d{1,2})$/);
@@ -2529,7 +2644,7 @@ function resetAll(){
    étiquettes verticales), titre Calligrapher en bas à gauche, officiers de la semaine + Chantre
    P.U. + Lecture de la Règle en bas. Impression : échelle 63 %, marges 1 cm, centré. */
 const FEUILLE = {
-  fonds: { rose:'FADBD3', bleu:'DAEEF3', jaune:'FFF2A8' },
+  fonds: { rose:'FADBD3', bleu:'D9E2F3', jaune:'FFF2A8' },   // bleu : franchement bleu (l'ancien DAEEF3 tirait sur le turquoise)
   couleurs: { bleu:'0000FF', rouge:'FF0000', brun:'993300', noir:'000000' },
   largeurs: [16.55, 5, 26.89, 24.66, 24.66, 24.66, 24.66, 24.66, 1.55, 3.66, 21.89],  // A..K
   hauteurs: { 17:9.9, 19:42.75, 20:42.9, 21:9.9, 22:42.9 },                            // défaut 39 (points)
