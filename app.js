@@ -1249,16 +1249,21 @@ function absentInfo(a){
 
 /* ================= Génération ================= */
 // Jour où un service quotidien est attendu : tous les jours / dimanches + solennités / chaque lundi (épître de la semaine)
+/* Fête de la Vierge Marie ? (quel que soit son rang : « Ste Marie (samedi) », Notre-Dame de…,
+   B.V. Marie-Reine, Cœur immaculé, BVM des samedis vides…). Les saints à prénom marial
+   (St Jean-Marie Vianney, St Louis-Marie Grignion, Ste Marie-Madeleine…) ne comptent pas. */
+const FETE_MARIALE_RE = /notre[ -]dame|vierge marie|^ste marie(?!-)|b\.?v\.? ?marie|^bvm$|immacul|assompt|nom de marie|marie[ -]reine|visitation|annonciation/i;
 function estJourParDefaut(s, date){
   if (s.quand === 'dim_sol') return parseISO(date).getDay() === 0 || isSolennite(date);
   if (s.quand === 'dim_sol_fete'){
-    const f = feteOn(date);
-    return parseISO(date).getDay() === 0 || isSolennite(date) || !!(f && f.rang === 'fete');
+    if (parseISO(date).getDay() === 0 || isSolennite(date)) return true;
+    const f = feteAffichee(date);   // fête affichée : inclut le « BVM » des samedis sans fête
+    return !!(f && (f.rang === 'fete' || FETE_MARIALE_RE.test(f.nom)));
   }
   if (s.quand === 'lundi') return parseISO(date).getDay() === 1;
   return true;
 }
-const QUAND_LABELS = { tous:'tous les jours', dim_sol:'dimanches + solennités', dim_sol_fete:'dimanches + solennités + fêtes', lundi:'chaque lundi (un par semaine)' };
+const QUAND_LABELS = { tous:'tous les jours', dim_sol:'dimanches + solennités', dim_sol_fete:'dimanches + solennités + fêtes + fêtes de la Vierge', lundi:'chaque lundi (un par semaine)' };
 function slotsQuinzaine(start){
   const slots = [];
   for (const w of [start, addDays(start,7)])
