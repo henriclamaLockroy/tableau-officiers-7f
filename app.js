@@ -904,10 +904,12 @@ function conflitServiteurTable(m, slot, excludeId){
   return affs.some(a => SERVITEURS_TABLE.includes(a.serviceId)) ? 'serviteur de table cette semaine (compatible seulement avec thuriféraire et P.U.)' : '';
 }
 /* Services lourds : délai minimal entre deux tours, même si le frère l'a peu rendu.
-   3 semaines pleines après serviteur de table (1 à 4) ou serviteur d'église (pris ensemble),
+   3 semaines pleines après serviteur de table (1 à 4), 3 semaines après serviteur d'église —
+   chacun de son côté : table et église sont indépendants (table S1 puis église S2 est permis) ;
    2 semaines pleines après lecteur de table, hebdomadier ou lecteur (pris ensemble). */
 const DELAIS_SERVICES = [
-  { ids:['st1','st2','st3','st4','st5','serviteur_eglise'], semaines:3, label:"serviteur de table ou d'église" },
+  { ids:['st1','st2','st3','st4','st5'], semaines:3, label:'serviteur de table' },
+  { ids:['serviteur_eglise'], semaines:3, label:"serviteur d'église" },
   { ids:['lecteur_table','hebdomadier','lecteur','lecteur2'], semaines:2, label:'lecteur de table, hebdomadier ou lecteur' },
 ];
 function conflitDelai(m, slot, excludeId){

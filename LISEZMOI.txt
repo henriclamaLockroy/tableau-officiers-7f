@@ -93,7 +93,8 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     serviteur d'église, lecteur de table, serviteurs de table / soupe / viande
     s'excluent mutuellement ; lecture de la Règle et chantre P.U. non concernés).
   - Délais minimaux entre services lourds, même pour un frère qui les a peu rendus :
-    3 semaines pleines après serviteur de table (1 à 4) ou serviteur d'église ;
+    3 semaines pleines après serviteur de table (1 à 4) ; 3 semaines après serviteur
+    d'église — chacun de son côté (table une semaine puis église la suivante : permis) ;
     2 semaines pleines après lecteur de table, hebdomadier ou lecteur.
   - Si le lecteur de la semaine a « toujours un 2e lecteur » coché dans sa fiche,
     la case 2e lecteur est remplie automatiquement.
