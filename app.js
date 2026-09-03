@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-09-02';
+const APP_BUILD = '2026-09-03';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
@@ -1848,6 +1848,15 @@ function openSlot(sid, semaine, dateStr){
     const abs = absentInfo(a);
     html += `<p>Actuellement : <b>${esc(cur ? cur.nom : (a.nomLibre || '?'))}</b> ${a.verrouille?'🔒':''}
       ${abs ? `<span class="rouge">⚠ ${esc(abs)}</span>` : ''}</p>`;
+    // Badge « règle » sur la case : détail en clair de ce qui ne va pas
+    const regles = cur ? reasons(cur, slot, a.id).filter(x => x !== 'absent sur la période' && x !== 'absent ce jour') : [];
+    if (regles.length)
+      html += `<div style="background:#fdecec;border:1px solid #f0b8b8;border-radius:6px;padding:8px 12px;margin:6px 0">
+        <b class="rouge">⚠ Cette case contredit ${regles.length > 1 ? 'des règles' : 'une règle'} :</b>
+        <ul style="margin:6px 0 0;padding-left:20px">${regles.map(x => `<li class="rouge">${esc(x)}</li>`).join('')}</ul>
+        <span class="hint">Remplacer le frère (proposition ci-dessous), ou laisser tel quel en connaissance de cause —
+        « Remplir » remplacera cette case sauf si elle est verrouillée 🔒.</span>
+      </div>`;
   }
   if (s.manuel){
     html += `<p class="hint">Service à remplir manuellement — aucune proposition automatique.
