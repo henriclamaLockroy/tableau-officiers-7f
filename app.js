@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-09-03';
+const APP_BUILD = '2026-09-04';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
@@ -553,7 +553,8 @@ function migrate(){
   //  - thuriféraire ouvert aux postulants et attendu aussi les jours de FÊTE (pas seulement dim. + solennités)
   //  - nouveaux champs de fiche : profession solennelle, « toujours un 2e lecteur »
   state.moines.forEach(m => { if (m.professionSolennelle === undefined) m.professionSolennelle = null;
-                              if (m.besoin2eLecteur === undefined) m.besoin2eLecteur = false; });
+                              if (m.besoin2eLecteur === undefined) m.besoin2eLecteur = false;
+                              if (m.messePrivee === undefined) m.messePrivee = []; });
   if ((state.version || 2) < 18){
     const pu = serviceById('priere_univ');
     let n = 0;
@@ -858,7 +859,7 @@ function abbePresent(date){
 }
 /* Priorité d'un moine pour un créneau : 0 = absolue (Père Abbé — ou Père Prieur s'il est absent — dimanche /
    solennité ; lecteur et remplaçant désignés de la Règle), 1 = saint du jour de l'ordo à son prénom,
-   1.5 = sa fête / anniversaire / anniversaire d'entrée ou de sacerdoce, 3 = aucune */
+   1.5 = sa fête / anniversaire / anniversaire d'entrée ou de sacerdoce, 2 = jour de sa messe privée, 3 = aucune */
 function prioSlot(m, slot){
   const s = serviceById(slot.serviceId);
   if (s && s.id === 'celebrant' && slot.date){
@@ -870,6 +871,9 @@ function prioSlot(m, slot){
     if (saintDuJourEst(m, slot.date)) return { n:1, label:'saint du jour : ' + feteOn(slot.date).nom };
     const ev = evenementsMoine(m, slot.date);
     if (ev.length) return { n:1.5, label:ev.join(', ') };
+    // Jour de messe privée (fiche du prêtre) : proposé en priorité célébrant principal — être célébrant
+    // lui tient lieu de messe du jour, et on ne retire aucun concélébrant de la messe conventuelle
+    if ((m.messePrivee || []).includes(parseISO(slot.date).getDay())) return { n:2, label:'jour de sa messe privée' };
   }
   if (s && (s.id === 'lecture_regle' || s.id === 'lecture_regle2') && !slot.date){
     // Lecteur et remplaçant désignés dans les fiches (case cochée) : toujours les mêmes
@@ -2134,6 +2138,10 @@ function renderMoineModal(){
     <label title="Quand ce frère est lecteur, « Remplir les cases » lui adjoint automatiquement un 2e lecteur">
       <input type="checkbox" id="fm_lect2" ${m.besoin2eLecteur?'checked':''}> Toujours lui adjoindre un 2e lecteur (quand il est lecteur)</label>
   </div>
+  ${m.statut === 'pretre' ? `<div style="margin-top:10px">Messe privée les :
+    ${[1,2,3,4,5,6,0].map(j => `<label style="margin-right:10px"><input type="checkbox" id="fm_mp_${j}" ${(m.messePrivee||[]).includes(j)?'checked':''}> ${JOURS[j]}</label>`).join('')}
+    <span class="hint">— ces jours-là, il est proposé en priorité célébrant principal (être célébrant lui tient lieu
+    de messe du jour : aucun concélébrant n'est retiré de la messe conventuelle)</span></div>` : ''}
   <p class="hint">Un prêtre est proposé célébrant principal le jour de sa fête (ou du saint patron), de son anniversaire,
     de son anniversaire d'entrée et de sacerdoce. Les jubilés (${JUBILES.join('/')} ans) d'entrée, de profession (temporaire
     et solennelle) et de sacerdoce sont rappelés dans le bandeau du planning. L'ancienneté ordonne les serviteurs de table
@@ -2218,6 +2226,7 @@ function grabMoineForm(){
   m.professionSolennelle = $('#fm_profSol').value || null;
   m.besoin2eLecteur = $('#fm_lect2').checked;
   if ($('#fm_ordi')) m.ordination = $('#fm_ordi').value || null;
+  if ($('#fm_mp_1')) m.messePrivee = [0,1,2,3,4,5,6].filter(j => $('#fm_mp_' + j) && $('#fm_mp_' + j).checked);
   m.patron = $('#fm_patron').value.trim() || null;
   const pd = $('#fm_patronDate').value.trim().match(/^(\d{1,2})\s*[\/\-.]\s*(\d{1,2})$/);
   m.patronDate = pd ? pad(pd[2]) + '-' + pad(pd[1]) : null;

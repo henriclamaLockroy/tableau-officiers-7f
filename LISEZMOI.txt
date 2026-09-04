@@ -60,8 +60,11 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     l'ordo porte le prénom (23 avril « St Georges et St Adalbert » → P. Georges),
     puis le prêtre dont c'est la fête (ou le saint patron saisi dans sa fiche, ex.
     St Raphaël Arnaiz Baron le 27 avril), l'anniversaire de naissance, d'entrée au
-    monastère ou de sacerdoce. Un prêtre qui rentre d'absence n'est PAS proposé célébrant
-    les 2 premiers jours (sauf Père Abbé / Père Prieur un dimanche ou une solennité).
+    monastère ou de sacerdoce ; puis le prêtre dont c'est le JOUR DE MESSE PRIVÉE
+    (cases lundi→dimanche dans sa fiche) : être célébrant lui tient lieu de messe du
+    jour, aucun concélébrant n'est retiré de la messe conventuelle. Un prêtre qui rentre
+    d'absence n'est PAS proposé célébrant les 2 premiers jours (sauf Père Abbé /
+    Père Prieur un dimanche ou une solennité).
   - Jubilés (10/20/25/30/40/50/60/70/75 ans) d'entrée, de profession temporaire,
     de profession solennelle et de sacerdoce : rappelés dans l'agenda.
   - Thuriféraire (frères et postulants) : attendu les dimanches, solennités, fêtes
