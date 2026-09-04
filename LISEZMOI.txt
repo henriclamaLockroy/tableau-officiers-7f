@@ -94,9 +94,9 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     ne pénalisent pas pour les services d'officiers.
   - Un seul service HEBDOMADAIRE par frère et par semaine (hebdomadier, lecteur,
     serviteur d'église, lecteur de table, ÉPÎTRE, serviteurs de table / soupe /
-    viande et VAISSELLE s'excluent mutuellement ; lecture de la Règle et
-    chantre P.U. non concernés). Exception : serviteur d'église et vaisselle
-    sont compatibles la même semaine.
+    viande s'excluent mutuellement ; lecture de la Règle et chantre P.U. non
+    concernés). La vaisselle n'en fait pas partie : elle n'est incompatible
+    qu'avec les services de table / repas.
   - Serviteur d'église et thuriféraire : incompatibles sur une même semaine.
   - Célébrant principal : jamais deux semaines consécutives — sauf si une priorité
     le désigne (Père Abbé, saint du jour, fête / anniversaire, jour de messe privée).
