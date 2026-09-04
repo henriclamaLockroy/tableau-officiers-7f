@@ -943,9 +943,9 @@ function conflitHebdo(m, slot, excludeId){
   if (s.id === 'serviteur_eglise' && affsDe(m.id).some(a => a.semaine === slot.semaine && a.id !== excludeId && a.serviceId === 'thuriferaire'))
     return 'thuriféraire cette semaine (incompatible avec serviteur d\'église)';
   if (!SERVICES_HEBDO_EXCLUSIFS.includes(s.id)) return '';
-  // La vaisselle est un service d'une semaine comme les autres (pour les services de table / repas,
-  // la règle « de vaisselle cette semaine » le signale déjà)
-  if (!s.conflitDejeuner && deVaisselleSemaine(m.id, slot.semaine))
+  // La vaisselle est un service d'une semaine comme les autres — sauf pour le serviteur d'église,
+  // compatible avec elle (pour les services de table / repas, « de vaisselle cette semaine » le signale déjà)
+  if (!s.conflitDejeuner && s.id !== 'serviteur_eglise' && deVaisselleSemaine(m.id, slot.semaine))
     return 'de vaisselle cette semaine (un seul service hebdomadaire)';
   const a = affsDe(m.id).find(a => a.semaine === slot.semaine && a.id !== excludeId
     && a.serviceId !== s.id && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId)
@@ -1801,7 +1801,8 @@ function openRenfort(w, datesStr, pourMid, forcer){
   const motifs = m => {
     const r = servicesDejeuner(m.id, w).map(n => 'fait « ' + n + ' » cette semaine');
     for (const a of affsDe(m.id))
-      if (a.semaine === w && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId) && !serviceById(a.serviceId)?.conflitDejeuner)
+      if (a.semaine === w && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId) && a.serviceId !== 'serviteur_eglise'
+          && !serviceById(a.serviceId)?.conflitDejeuner)
         r.push('fait « ' + (serviceById(a.serviceId)?.nom || '?') + ' » cette semaine');
     const abs = jours.filter(d => !presentOn(m, d));
     if (abs.length) r.push(abs.length === jours.length ? 'absent' : 'absent ' + abs.map(frShort).join(', '));
@@ -1855,7 +1856,8 @@ function addRenfort(w, mid, datesStr, pourMid){
   const jours = datesStr ? datesStr.split('|') : [0,1,2,3,4,5,6].map(i => addDays(w, i));
   const warns = servicesDejeuner(mid, w).map(n => 'fait « ' + n + ' » cette semaine (incompatible avec la vaisselle)');
   for (const a of affsDe(mid))
-    if (a.semaine === w && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId) && !serviceById(a.serviceId)?.conflitDejeuner)
+    if (a.semaine === w && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId) && a.serviceId !== 'serviteur_eglise'
+        && !serviceById(a.serviceId)?.conflitDejeuner)
       warns.push('fait « ' + (serviceById(a.serviceId)?.nom || '?') + ' » cette semaine (un seul service hebdomadaire)');
   const abs = jours.filter(d => !presentOn(m, d));
   if (abs.length) warns.push('absent ' + abs.map(frShort).join(', '));
