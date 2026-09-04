@@ -936,7 +936,13 @@ const SERVICES_HEBDO_EXCLUSIFS = ['hebdomadier','lecteur','lecteur2','serviteur_
   'st1','st2','st3','st4','st5','st_soupe','st_soupe2','st_soupe3','st_viande','plat3_1','plat3_2'];
 function conflitHebdo(m, slot, excludeId){
   const s = serviceById(slot.serviceId);
-  if (!s || !SERVICES_HEBDO_EXCLUSIFS.includes(s.id)) return '';
+  if (!s) return '';
+  // Serviteur d'église et thuriféraire : incompatibles sur une même semaine (dans les deux sens)
+  if (s.id === 'thuriferaire' && affsDe(m.id).some(a => a.semaine === slot.semaine && a.id !== excludeId && a.serviceId === 'serviteur_eglise'))
+    return "serviteur d'église cette semaine (incompatible avec thuriféraire)";
+  if (s.id === 'serviteur_eglise' && affsDe(m.id).some(a => a.semaine === slot.semaine && a.id !== excludeId && a.serviceId === 'thuriferaire'))
+    return 'thuriféraire cette semaine (incompatible avec serviteur d\'église)';
+  if (!SERVICES_HEBDO_EXCLUSIFS.includes(s.id)) return '';
   // La vaisselle est un service d'une semaine comme les autres (pour les services de table / repas,
   // la règle « de vaisselle cette semaine » le signale déjà)
   if (!s.conflitDejeuner && deVaisselleSemaine(m.id, slot.semaine))
