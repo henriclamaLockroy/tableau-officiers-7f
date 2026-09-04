@@ -93,8 +93,14 @@ RÈGLES APPLIQUÉES AUTOMATIQUEMENT
     viande, lecture de la Règle, vaisselle) ; les services de table et la vaisselle
     ne pénalisent pas pour les services d'officiers.
   - Un seul service HEBDOMADAIRE par frère et par semaine (hebdomadier, lecteur,
-    serviteur d'église, lecteur de table, serviteurs de table / soupe / viande
-    s'excluent mutuellement ; lecture de la Règle et chantre P.U. non concernés).
+    serviteur d'église, lecteur de table, ÉPÎTRE, serviteurs de table / soupe /
+    viande et VAISSELLE s'excluent mutuellement ; lecture de la Règle et
+    chantre P.U. non concernés).
+  - Célébrant principal : jamais deux semaines consécutives — sauf si une priorité
+    le désigne (Père Abbé, saint du jour, fête / anniversaire, jour de messe privée).
+  - Moine de passage : prioritaire pour UN SEUL service pieux de la quinzaine,
+    et au plus un service pieux par semaine (il est là pour quelques jours,
+    on ne l'enchaîne pas).
   - Délais minimaux entre services lourds, même pour un frère qui les a peu rendus :
     3 semaines pleines après serviteur de table (1 à 4) ; 3 semaines après serviteur
     d'église — chacun de son côté (table une semaine puis église la suivante : permis) ;

@@ -929,14 +929,18 @@ function conflitDelai(m, slot, excludeId){
   return '';
 }
 /* Pas plus d'un service qui occupe toute la semaine (hebdomadier, lecteur, serviteur d'église,
-   lecteur de table, serviteurs de table / soupe / viande) : ces services hebdomadaires s'excluent
-   mutuellement sur une même semaine. Lecture de la Règle (frères désignés) et chantre P.U.
-   (mécanique mensuelle) ne comptent pas. */
-const SERVICES_HEBDO_EXCLUSIFS = ['hebdomadier','lecteur','lecteur2','serviteur_eglise','lecteur_table',
+   lecteur de table, épître, serviteurs de table / soupe / viande, vaisselle) : ces services
+   hebdomadaires s'excluent mutuellement sur une même semaine, et un frère de vaisselle n'en prend
+   aucun. Lecture de la Règle (frères désignés) et chantre P.U. (mécanique mensuelle) ne comptent pas. */
+const SERVICES_HEBDO_EXCLUSIFS = ['hebdomadier','lecteur','lecteur2','serviteur_eglise','lecteur_table','epitre',
   'st1','st2','st3','st4','st5','st_soupe','st_soupe2','st_soupe3','st_viande','plat3_1','plat3_2'];
 function conflitHebdo(m, slot, excludeId){
   const s = serviceById(slot.serviceId);
   if (!s || !SERVICES_HEBDO_EXCLUSIFS.includes(s.id)) return '';
+  // La vaisselle est un service d'une semaine comme les autres (pour les services de table / repas,
+  // la règle « de vaisselle cette semaine » le signale déjà)
+  if (!s.conflitDejeuner && deVaisselleSemaine(m.id, slot.semaine))
+    return 'de vaisselle cette semaine (un seul service hebdomadaire)';
   const a = affsDe(m.id).find(a => a.semaine === slot.semaine && a.id !== excludeId
     && a.serviceId !== s.id && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId)
     && !(s.conflitDejeuner && serviceById(a.serviceId)?.conflitDejeuner));   // les paires table/repas sont déjà signalées
@@ -1098,8 +1102,19 @@ function reasons(m, slot, excludeId){
       && (retourAbsence(m, slot.date) || retourAbsence(m, addDays(slot.date, -1)))
       && !((parseISO(slot.date).getDay() === 0 || isSolennite(slot.date)) && (m.id === state.settings.abbeId || m.id === state.settings.prieurId)))
     r.push("rentre d'absence (pas célébrant les 2 premiers jours)");
+  const ccs = conflitCelebrantSuite(m, slot, excludeId);
+  if (ccs) r.push(ccs);
   if (freqAtteinte(m, s, slot, excludeId)) r.push('fréquence max atteinte');
   return r;
+}
+// Pas célébrant principal deux semaines consécutives — sauf si une priorité le désigne ce jour-là
+// (Père Abbé / Prieur, saint du jour, fête ou anniversaire, jour de sa messe privée)
+function conflitCelebrantSuite(m, slot, excludeId){
+  if (slot.serviceId !== 'celebrant' || !slot.date) return '';
+  if (prioSlot(m, slot).n < 3) return '';
+  const voisin = affsDe(m.id).find(a => a.id !== excludeId && a.serviceId === 'celebrant'
+    && a.semaine !== slot.semaine && Math.abs(weeksBetween(a.semaine, slot.semaine)) === 1);
+  return voisin ? 'célébrant principal la semaine ' + (voisin.semaine < slot.semaine ? 'précédente' : 'suivante') + ' (pas deux semaines de suite)' : '';
 }
 // Détail d'absence sur la période du créneau ('' si présent)
 function absencePeriode(m, slot){
@@ -1136,6 +1151,8 @@ function softWarns(m, slot, excludeId){
   if (cdl) w.push(cdl);
   if (s.id === 'celebrant' && slot.date && (retourAbsence(m, slot.date) || retourAbsence(m, addDays(slot.date, -1))))
     w.push("rentre d'absence (pas célébrant les 2 premiers jours)");
+  const ccs = conflitCelebrantSuite(m, slot, excludeId);
+  if (ccs) w.push(ccs);
   if (s.francophone && !m.francophone) w.push('non francophone');
   if (freqAtteinte(m, s, slot, excludeId)) w.push('fréquence max atteinte');
   const cs = weekLoadTotal(m.id, slot.semaine, excludeId);
@@ -1161,10 +1178,14 @@ function scoreMoine(m, slot, excludeId){
   const aVenir = dp.prochain ? jours(refKey, dp.prochain) : Infinity;
   const prox = Math.min(dp.dernier ? jours(dp.dernier, refKey) : Infinity, aVenir <= PROCHAIN_JOURS ? aVenir : Infinity);
   const pr = prioSlot(m, slot);
-  // Les moines de passage sont prioritaires, SAUF pour les services de table / liés à la vaisselle
+  // Les moines de passage sont prioritaires, SAUF pour les services de table / liés à la vaisselle —
+  // et seulement pour LEUR PREMIER service pieux de la quinzaine : de retour quelques jours, un frère
+  // ne doit pas être enchaîné (thuriféraire trois fois + serviteur d'église...)
+  const q0 = quinzaineDe(slot.semaine);
+  const pieuxQuinzaine = weekLoadTotal(m.id, q0, excludeId) + weekLoadTotal(m.id, addDays(q0, 7), excludeId);
   return {
     m, cat, prio: pr.n, prioLabel: pr.label,
-    externe: (m.regime === 'externe' && !(s && s.conflitDejeuner)) ? 0 : 1,
+    externe: (m.regime === 'externe' && !(s && s.conflitDejeuner) && pieuxQuinzaine === 0) ? 0 : 1,
     chargeSemaine: chargeCat(m.id, cat, slot.semaine, addDays(slot.semaine,7), excludeId),
     douzeMois: countService(m.id, slot.serviceId, addDays(refKey, -365), refKey, excludeId),
     total: weekLoadTotal(m.id, slot.semaine, excludeId),
@@ -1196,7 +1217,7 @@ function candidats(slot, excludeId, exclureMoineId){
     .map(m => {
       const sc = scoreMoine(m, slot, excludeId);
       sc.warns = memeJour(m, slot, excludeId).map(n => 'fait déjà ' + n + ' ce jour-là');
-      if (s.id !== 'celebrant' && sc.total >= PLAFOND_SEMAINE) sc.warns.push('déjà ' + sc.total + ' services cette semaine');
+      if (s.id !== 'celebrant' && sc.total >= (m.regime === 'externe' ? 1 : PLAFOND_SEMAINE)) sc.warns.push('déjà ' + sc.total + ' service' + (sc.total>1?'s':'') + ' cette semaine' + (m.regime === 'externe' ? ' (de passage : un seul)' : ''));
       return sc;
     })
     .sort((a,b) => a.prio - b.prio || a.warns.length - b.warns.length || cmpScore(a,b));
@@ -1356,9 +1377,9 @@ function genererManquants(start){
       const exclus = [chantreDuMois('chantre_pu', moisPrec(mois)), chantreDuMois('chantre_pu2', moisPrec(mois)), chantreDuMois(autre, mois)].filter(Boolean);
       c = c.filter(x => !exclus.includes(x.m.id));
     }
-    // Plafond : 2 services par semaine (hors célébrant) — dépassé seulement si personne d'autre ;
-    // les priorités (Père Abbé, anniversaires, rotation de la Règle…) passent devant le plafond
-    const choix = c.find(x => x.prio < 3 || x.total < PLAFOND_SEMAINE) || c[0];
+    // Plafond : 2 services par semaine (hors célébrant), 1 seul pour un moine de passage — dépassé
+    // seulement si personne d'autre ; les priorités (Père Abbé, anniversaires…) passent devant le plafond
+    const choix = c.find(x => x.prio < 3 || x.total < (x.m.regime === 'externe' ? 1 : PLAFOND_SEMAINE)) || c[0];
     if (choix){
       state.affectations.push({ id:'a'+(state.seq.affect++), serviceId: slot.serviceId,
         semaine: slot.semaine, date: slot.date, moineId: choix.m.id, nomLibre:null, verrouille: false,
@@ -1769,9 +1790,13 @@ function openRenfort(w, datesStr, pourMid, forcer){
   const jours = dates || [0,1,2,3,4,5,6].map(i => addDays(w, i));
   // Déjà de vaisselle (équipe de la semaine ou déjà renfort) : jamais listés
   const dejaVaisselle = m => m.actif === false || m.equipe === eq || vsem(w).ajouts.some(a => a.mid === m.id);
-  // Motifs d'exclusion : service de table / repas cette semaine, ou absent sur les jours voulus
+  // Motifs d'exclusion : service de table / repas ou autre service hebdomadaire cette semaine
+  // (la vaisselle est un service d'une semaine), ou absent sur les jours voulus
   const motifs = m => {
     const r = servicesDejeuner(m.id, w).map(n => 'fait « ' + n + ' » cette semaine');
+    for (const a of affsDe(m.id))
+      if (a.semaine === w && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId) && !serviceById(a.serviceId)?.conflitDejeuner)
+        r.push('fait « ' + (serviceById(a.serviceId)?.nom || '?') + ' » cette semaine');
     const abs = jours.filter(d => !presentOn(m, d));
     if (abs.length) r.push(abs.length === jours.length ? 'absent' : 'absent ' + abs.map(frShort).join(', '));
     return r;
@@ -1823,6 +1848,9 @@ function addRenfort(w, mid, datesStr, pourMid){
   const m = monkById(mid);
   const jours = datesStr ? datesStr.split('|') : [0,1,2,3,4,5,6].map(i => addDays(w, i));
   const warns = servicesDejeuner(mid, w).map(n => 'fait « ' + n + ' » cette semaine (incompatible avec la vaisselle)');
+  for (const a of affsDe(mid))
+    if (a.semaine === w && SERVICES_HEBDO_EXCLUSIFS.includes(a.serviceId) && !serviceById(a.serviceId)?.conflitDejeuner)
+      warns.push('fait « ' + (serviceById(a.serviceId)?.nom || '?') + ' » cette semaine (un seul service hebdomadaire)');
   const abs = jours.filter(d => !presentOn(m, d));
   if (abs.length) warns.push('absent ' + abs.map(frShort).join(', '));
   if (warns.length && !confirm(m.nom + ' — déconseillé :\n– ' + warns.join('\n– ') + '\n\nMettre quand même à la vaisselle ?')) return;
