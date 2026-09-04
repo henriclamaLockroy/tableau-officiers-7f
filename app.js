@@ -889,24 +889,12 @@ function conflitCelebrantPU(m, slot, excludeId){
   const a = findAssign(autre, slot.semaine, slot.date);
   return a && a.moineId === m.id && a.id !== excludeId ? (autre === 'celebrant' ? 'célébrant ce jour-là' : 'fait la P.U. ce jour-là') : '';
 }
-/* Serviteur de table (1 à 4) : la semaine où il sert à table, un frère ne rend aucun autre service
-   d'officier, sauf thuriféraire et prière universelle. Célébrant, homélie et lecture de la Règle
-   (désignés d'office) ne sont pas concernés ; les autres services de table le sont déjà par la règle
-   « un seul service de table par semaine ». */
-const SERVITEURS_TABLE = ['st1','st2','st3','st4','st5'];
-const COMPAT_SERVITEUR = ['thuriferaire','priere_univ','celebrant','homelie','lecture_regle','lecture_regle2'];
-function conflitServiteurTable(m, slot, excludeId){
-  const s = serviceById(slot.serviceId);
-  if (!s) return '';
-  const affs = affsDe(m.id).filter(a => a.semaine === slot.semaine && a.id !== excludeId);
-  if (SERVITEURS_TABLE.includes(s.id)){
-    const autres = affs.map(a => serviceById(a.serviceId))
-      .filter(x => x && !SERVITEURS_TABLE.includes(x.id) && !COMPAT_SERVITEUR.includes(x.id) && !x.conflitDejeuner);
-    return autres.length ? 'serviteur de table : incompatible avec « ' + autres[0].nom + ' » cette semaine' : '';
-  }
-  if (COMPAT_SERVITEUR.includes(s.id) || s.conflitDejeuner) return '';
-  return affs.some(a => SERVITEURS_TABLE.includes(a.serviceId)) ? 'serviteur de table cette semaine (compatible seulement avec thuriféraire et P.U.)' : '';
-}
+/* Compatibilités du temps de table (décision du 4 septembre 2026) : les services de table
+   (serviteurs 1-4, soupe, viande, lecteur de table) restent exclusifs entre eux, avec la vaisselle
+   et avec les services liturgiques d'une semaine (via SERVICES_HEBDO_EXCLUSIFS) ; ils restent
+   compatibles avec les services quotidiens (thuriféraire, P.U., célébrant, homélie) et la Règle.
+   Le CHANTRE P.U. (service mensuel) est exceptionnellement compatible avec eux — l'ancienne règle
+   « serviteur de table compatible seulement avec thuriféraire et P.U. » est supprimée. */
 /* Services lourds : délai minimal entre deux tours, même si le frère l'a peu rendu.
    3 semaines pleines après serviteur de table (1 à 4), 3 semaines après serviteur d'église —
    chacun de son côté : table et église sont indépendants (table S1 puis église S2 est permis) ;
@@ -1095,8 +1083,6 @@ function reasons(m, slot, excludeId){
     for (const n of servicesDejeuner(m.id, slot.semaine, excludeId)) r.push('fait déjà « ' + n + ' » cette semaine');
   const cpu = conflitCelebrantPU(m, slot, excludeId);
   if (cpu) r.push(cpu);
-  const cst = conflitServiteurTable(m, slot, excludeId);
-  if (cst) r.push(cst);
   const chd = conflitHebdo(m, slot, excludeId);
   if (chd) r.push(chd);
   const cdl = conflitDelai(m, slot, excludeId);
@@ -1148,8 +1134,6 @@ function softWarns(m, slot, excludeId){
     for (const n of servicesDejeuner(m.id, slot.semaine, excludeId)) w.push('fait déjà « ' + n + ' » cette semaine');
   const cpu = conflitCelebrantPU(m, slot, excludeId);
   if (cpu) w.push(cpu);
-  const cst = conflitServiteurTable(m, slot, excludeId);
-  if (cst) w.push(cst);
   const chd = conflitHebdo(m, slot, excludeId);
   if (chd) w.push(chd);
   const cdl = conflitDelai(m, slot, excludeId);
