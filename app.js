@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-09-04';
+const APP_BUILD = '2026-10-15';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
@@ -2693,10 +2693,11 @@ const FEUILLE = {
   couleurs: { bleu:'0000FF', rouge:'FF0000', brun:'993300', noir:'000000' },
   largeurs: [16.55, 5, 26.89, 24.66, 24.66, 24.66, 24.66, 24.66, 1.55, 3.66, 21.89],  // A..K
   hauteurs: { 17:9.9, 19:42.75, 20:42.9, 21:9.9, 22:42.9 },                            // défaut 39 (points)
-  echelle: 0.63,                                                                       // échelle d'impression du classeur (63 %)
+  echelle: 0.63,                                                                       // échelle d'impression du classeur (63 %) : hauteurs de ligne et polices
+  echelleLargeur: 0.70,                                                                // impression HTML/PDF : colonnes un peu plus larges (≈ 268 mm sur les 277 utiles)
 };
 // Largeur d'une colonne Excel en mm à l'impression (unité ≈ 7 px + 5 px de marge, 96 px/pouce)
-const colMm = w => (w * 7 + 5) / 96 * 25.4 * FEUILLE.echelle;
+const colMm = w => (w * 7 + 5) / 96 * 25.4 * FEUILLE.echelleLargeur;
 // Contenu d'une case : nom(s) + « modifié depuis l'impression » ; plusieurs services → « X / Y »
 function celluleFeuille(sids, semaine, date, start, sep){
   const parts = [], modif = [];
@@ -2734,7 +2735,7 @@ function grilleFeuille(start){
     const r = i + 3, date = addDays(start, i), d = parseISO(date), dim = d.getDay() === 0, sam = d.getDay() === 6;
     const w = i < 0 ? addDays(start,-7) : i < 7 ? w1 : w2;
     const f = feteAffichee(date), sol = isSolennite(date);
-    const rouge = dim || sol;   // toute la ligne en rouge ET sur fond coloré
+    const rouge = dim || sol;   // toute la ligne en rouge ; fond coloré pour les dimanches seulement (solennité : écriture rouge sur fond blanc)
     const satRow = sam && r < 16;
     put(r, 1, dim ? 'DIMANCHE' : JOURS[d.getDay()], { fond:true, color: dim ? 'rouge' : 'bleu', size: dim ? 12 : 14, b: bMain(r,1,satRow) });
     put(r, 2, d.getDate(), { fond:true, color: rouge ? 'rouge' : 'bleu', b: bMain(r,2,satRow) });
@@ -2742,7 +2743,7 @@ function grilleFeuille(start){
     put(r, 3, f ? (fs.majuscule ? f.nom.toUpperCase() : f.nom) : '', { fond:true, color: rouge ? 'rouge' : 'noir', italic: !!fs.italique, size: 14, b: bMain(r,3,satRow) });
     jourSvc.forEach((sid, k) => {
       const c = celluleFeuille([sid], w, date, start);
-      put(r, 4+k, c.txt, { fond: rouge, modif: c.modif, color: rouge ? 'rouge' : 'noir', b: bMain(r,4+k,satRow) });
+      put(r, 4+k, c.txt, { fond: dim, modif: c.modif, color: rouge ? 'rouge' : 'noir', b: bMain(r,4+k,satRow) });
     });
   }
   // — Bloc « Serviteurs de table » J..K, lignes 2 à 16 : 1-4, puis soupe (2) et viande dans la même colonne —
