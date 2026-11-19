@@ -429,25 +429,78 @@ function affsDe(mid){
       let l = _affIdx.get(a.moineId); if (!l) { l = []; _affIdx.set(a.moineId, l); }
       l.push(a);
     }
+    // Même personne : même nom, ou même date de naissance ET même date d'entrée (fiche de fonction
+    // « R.P. Abbé », « P. Prieur »… et fiche au nom du frère, qui portent les mêmes dates)
+    const parCle = new Map();
+    const ajoute = (k, id) => { let l = parCle.get(k); if (!l) { l = new Set(); parCle.set(k, l); } l.add(id); };
+    const cles = m => ['n:' + normNom(m.nom)].concat(m.naissance && m.entree ? ['d:' + m.naissance + '|' + m.entree] : []);
+    for (const m of state.moines) for (const k of cles(m)) ajoute(k, m.id);
     for (const m of state.moines){
-      const n = normNom(m.nom); let l = _homIdx.get(n); if (!l) { l = []; _homIdx.set(n, l); } l.push(m.id);
+      const autres = new Set();
+      for (const k of cles(m)) for (const id of parCle.get(k)) if (id !== m.id) autres.add(id);
+      if (autres.size) _homIdx.set(m.id, [...autres]);
     }
   }
   return _affIdx.get(mid) || [];
 }
-/* Historique d'une PERSONNE (dernière fois, nombre sur 12 mois) : les cases de sa fiche, mais aussi
-   celles d'une autre fiche portant exactement le même nom (doublon, ancienne fiche de l'archive)
-   et celles saisies en nom libre à ce nom. Sur la feuille, c'est le même frère : sans cela, l'appli
-   ne voyait que la partie de l'historique rattachée à l'une des fiches (P. Louis-Marie, nov. 2026 :
-   « rendu la semaine du 1 mars » alors qu'il avait été hebdomadier la semaine du 30 août). */
+/* Historique d'une PERSONNE (dernière fois, nombre sur 12 mois, fréquence maximale) : les cases de sa
+   fiche, mais aussi celles des autres fiches de la même personne (même nom ; ou fiche de fonction
+   « R.P. Abbé » / « P. Prieur » avec les mêmes dates de naissance et d'entrée que la fiche à son nom)
+   et celles saisies en nom libre à l'un de ces noms. Sans cela, l'appli ne voyait qu'une partie de
+   l'historique (P. Louis-Marie, nov. 2026 : deux fiches à son nom ; « rendu la semaine du 1 mars »
+   alors qu'il avait été hebdomadier la semaine du 30 août, inscrite sur l'autre fiche). */
 function affsHisto(mid){
   const propres = affsDe(mid);
   const m = monkById(mid);
   if (!m) return propres;
-  const n = normNom(m.nom);
-  const homs = (_homIdx.get(n) || []).filter(id => id !== mid), libres = _nomIdx.get(n) || [];
+  const homs = _homIdx.get(mid) || [];
+  const noms = new Set([m, ...homs.map(monkById)].filter(Boolean).map(x => normNom(x.nom)));
+  const libres = [...noms].flatMap(n => _nomIdx.get(n) || []);
   if (!homs.length && !libres.length) return propres;
   return propres.concat(...homs.map(id => affsDe(id)), libres);
+}
+/* Deux fiches portant le même nom = la même personne : on n'en garde qu'une (celle qui a le plus
+   d'historique). Ses services, absences, vaisselle et rôles (Abbé, Prieur) passent sur la fiche
+   gardée. Cas réel : la fiche « P. Sous-Prieur » renommée « P. Louis-Marie » en août 2026, alors
+   qu'une fiche « P. Louis-Marie » existait déjà (historique depuis 2019). */
+function fusionnerFichesEnDouble(){
+  const groupes = new Map();
+  for (const m of state.moines){
+    const n = normNom(m.nom); if (!n) continue;
+    if (!groupes.has(n)) groupes.set(n, []);
+    groupes.get(n).push(m);
+  }
+  const nb = id => state.affectations.reduce((k, a) => k + (a.moineId === id ? 1 : 0), 0);
+  const faits = [];
+  for (const fs of groupes.values()){
+    if (fs.length < 2) continue;
+    fs.sort((a, b) => nb(b.id) - nb(a.id));
+    const garde = fs[0];
+    for (const d of fs.slice(1)){
+      for (const a of state.affectations) if (a.moineId === d.id) a.moineId = garde.id;
+      if (state.corbeille) for (const a of (state.corbeille.affs || [])) if (a.moineId === d.id) a.moineId = garde.id;
+      for (const o of Object.values(state.vaisselleSem || {})){
+        o.retraits = [...new Set((o.retraits || []).map(x => x === d.id ? garde.id : x))];
+        for (const aj of (o.ajouts || [])) { if (aj.mid === d.id) aj.mid = garde.id; if (aj.pour === d.id) aj.pour = garde.id; }
+        const vus = new Set();
+        o.ajouts = (o.ajouts || []).filter(aj => { if (vus.has(aj.mid)) return false; vus.add(aj.mid); return true; });
+      }
+      if (state.settings.abbeId === d.id) state.settings.abbeId = garde.id;
+      if (state.settings.prieurId === d.id) state.settings.prieurId = garde.id;
+      if (state.ui && state.ui.histMoine === d.id) state.ui.histMoine = garde.id;
+      // absences réunies ; ce qui manque sur la fiche gardée est repris de l'autre
+      const pg = garde.periodes || (garde.periodes = []);
+      for (const p of (d.periodes || [])) if (!pg.some(q => q.debut === p.debut && q.fin === p.fin)) pg.push(p);
+      for (const k of Object.keys(d))
+        if ((garde[k] === null || garde[k] === undefined || garde[k] === '') && d[k] !== null && d[k] !== undefined && d[k] !== '') garde[k] = d[k];
+      if (d.actif !== false) garde.actif = true;
+      garde.notes = ((garde.notes || '') + '\nFiche en double « ' + d.nom + ' » (n° ' + d.id + ') réunie à celle-ci le ' + todayISO() + '.').trim();
+      state.moines = state.moines.filter(x => x !== d);
+      faits.push(garde.nom);
+    }
+  }
+  if (faits.length) _affIdx = null;
+  return faits;
 }
 // Identifiants d'affectation uniques (un doublon ferait disparaître une case de l'historique quand
 // l'autre est exclue d'un calcul) et compteur toujours au-delà du plus grand identifiant existant
@@ -644,7 +697,10 @@ function migrate(){
       + `un seul service hebdomadaire par frère et par semaine ; samedis sans fête notés « BVM ».`;
   }
   reparerIdsAffectations();
-  state.version = 18;
+  const fusions = fusionnerFichesEnDouble();
+  if (fusions.length) bannerMsg = (bannerMsg ? bannerMsg + '<br>' : '') + 'Fiches en double réunies (un seul frère, une seule fiche) : '
+    + esc([...new Set(fusions)].join(', ')) + '. Tout son historique est maintenant sur une seule fiche.';
+  state.version = 19;
 }
 const SERVICES_FRANCOPHONES = ['hebdomadier','lecteur','lecteur2','chantre_pu','chantre_pu2','lecteur_table','epitre'];
 // Affectations à nom libre dont le nom correspond exactement à une (seule) fiche : on les rattache à la fiche
@@ -2176,10 +2232,19 @@ function filtreMoines(v){
   $('#moinesList').innerHTML = moinesListHTML();
 }
 
-let editTemp = null;
+let editTemp = null, editNomInitial = '', nomEnDouble = null;
+// Autre fiche portant déjà ce nom (comparaison sans majuscules, accents ni ponctuation)
+function ficheDuMemeNom(nom, saufId){
+  const n = normNom(nom);
+  return n ? state.moines.find(x => x !== editTemp && x.id !== saufId && normNom(x.nom) === n) || null : null;
+}
+const MSG_DOUBLON = nom => `Une autre fiche s'appelle déjà « ${nom} ». Un frère ne doit avoir qu'une seule fiche : `
+  + `sinon ses services sont partagés entre les deux et l'application se trompe (« dernière fois », propositions). `
+  + `Le nom n'a pas été changé. Pour un frère qui reçoit une charge (Sous-Prieur…), garder sa fiche à son nom.`;
 function editMoine(id){
   const m = id ? monkById(id) : { id:null, nom:'', statut:'frere', francophone:true, regime:'permanent', actif:true, periodes:[], equipe:null, capacites:{}, notes:'', naissance:null, fete:null, entree:null };
   editTemp = id ? m : m;   // fiche existante : édition directe (autosauvegarde)
+  editNomInitial = m.nom; nomEnDouble = null;
   renderMoineModal();
 }
 function renderMoineModal(){
@@ -2188,6 +2253,7 @@ function renderMoineModal(){
   ${m.id ? '<p class="hint">Les modifications sont enregistrées automatiquement (le bouton « Enregistrer » ferme la fiche).</p>' : ''}
   <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
     <label>Nom <input id="fm_nom" value="${esc(m.nom)}" style="width:180px"></label>
+    <span id="fm_nomErr" class="rouge" style="flex-basis:100%">${nomEnDouble ? esc(MSG_DOUBLON(nomEnDouble)) : ''}</span>
     <label>Statut <select id="fm_statut">${Object.entries(STATUTS).map(([k,v]) =>
       `<option value="${k}" ${m.statut===k?'selected':''}>${v}</option>`).join('')}</select></label>
     <label><input type="checkbox" id="fm_fr" ${m.francophone?'checked':''}> Francophone</label>
@@ -2270,6 +2336,7 @@ function renderMoineModal(){
 }
 function enregistrerMoine(){
   grabMoineForm();
+  if (nomEnDouble) { alert(MSG_DOUBLON(nomEnDouble)); return; }
   if (!editTemp.nom) { alert('Le nom est obligatoire.'); return; }
   save();
   bannerMsg = 'Fiche de ' + esc(editTemp.nom) + ' enregistrée.';
@@ -2292,7 +2359,11 @@ function delPeriode(i){
 function grabMoineForm(){
   const m = editTemp;
   if (!$('#fm_nom')) return;
-  m.nom = $('#fm_nom').value.trim();
+  const nomSaisi = $('#fm_nom').value.trim();
+  const autre = ficheDuMemeNom(nomSaisi, m.id);
+  nomEnDouble = autre ? autre.nom : null;
+  m.nom = autre ? editNomInitial : nomSaisi;   // nom d'une autre fiche : refusé, on garde le nom d'origine
+  const err = $('#fm_nomErr'); if (err) err.textContent = autre ? MSG_DOUBLON(autre.nom) : '';
   m.statut = $('#fm_statut').value;
   m.francophone = $('#fm_fr').checked;
   m.regime = $('#fm_regime').value;
@@ -2321,6 +2392,7 @@ function grabMoineForm(){
 }
 function creerMoine(){
   grabMoineForm();
+  if (nomEnDouble) { alert(MSG_DOUBLON(nomEnDouble)); return; }
   if (!editTemp.nom) { alert('Le nom est obligatoire.'); return; }
   editTemp.id = 'm' + (state.seq.moine++);
   state.moines.push(editTemp);
