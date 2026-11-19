@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-10-15';
+const APP_BUILD = '2026-11-19';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
@@ -255,12 +255,35 @@ async function choisirDossierSauv(){
         return;
       }
     } catch(e){ /* comparaison impossible : on laisse passer */ }
+    // Navigateur sans données (nouvelle adresse de l'application, nouvel ordinateur) : si le dossier contient
+    // déjà des sauvegardes, on recharge la plus récente au lieu d'écrire par-dessus les données de départ
+    if (state.donneesDepart){
+      const noms = [];
+      for await (const n of h.keys()) if (/^tableau-officiers-\d{4}-\d{2}-\d{2}\.json$/.test(n)) noms.push(n);
+      noms.sort();
+      if (noms.length){
+        const nom = noms[noms.length - 1];
+        if (!confirm('Ce dossier contient déjà des sauvegardes (la plus récente : « ' + nom + ' »).\n'
+          + 'Ce navigateur n’a encore que les données de départ.\n\nOK = recharger cette sauvegarde (recommandé).\nAnnuler = ne rien changer.')){
+          alert('Sauvegarde automatique non activée : elle aurait remplacé les sauvegardes du dossier par les données de départ.\n'
+            + 'Importer d’abord une sauvegarde (Réglages → « Importer une sauvegarde »).');
+          return;
+        }
+        const data = JSON.parse(await (await (await h.getFileHandle(nom)).getFile()).text());
+        if (!data.moines || !data.services) throw new Error('format inattendu (' + nom + ')');
+        remplacerDonnees(data);
+        bannerMsg = 'Données rechargées depuis « ' + esc(nom) + ' ». ';
+      }
+      delete state.donneesDepart;   // dossier vide : nouvelle installation, les données de départ deviennent les données
+    }
     await fsSet('dossier', h);
     state.settings.sauvAuto = { actif: true, dossier: h.name };
     save();
-    bannerMsg = 'Sauvegarde automatique activée — dossier « ' + esc(h.name) + ' ». Le fichier du jour y sera réécrit après chaque modification (10 derniers jours conservés).';
+    bannerMsg = (state.donneesDepart === undefined && bannerMsg.startsWith('Données rechargées') ? bannerMsg : '') + 'Sauvegarde automatique activée — dossier « ' + esc(h.name) + ' ». Le fichier du jour y sera réécrit après chaque modification (10 derniers jours conservés).';
     render();
-  } catch(e){ /* choix annulé */ }
+  } catch(e){
+    if (e && e.name !== 'AbortError') alert('Sauvegarde automatique : ' + (e.message || e));   // (AbortError = choix annulé)
+  }
 }
 function desactiverSauvAuto(){
   state.settings.sauvAuto = { actif: false, dossier: null, refus: true };
@@ -280,6 +303,7 @@ async function ecrireSauvAuto(){
   try {
     const h = await fsGet('dossier');
     if (!h) throw new Error('dossier non retrouvé — le rechoisir dans Réglages');
+    if (state.donneesDepart) throw new Error('données de départ : importer d’abord la dernière sauvegarde');
     if (await h.queryPermission({ mode: 'readwrite' }) !== 'granted')
       throw new Error('accès au dossier à confirmer');
     const nom = 'tableau-officiers-' + todayISO() + '.json';
@@ -391,17 +415,54 @@ async function rechargerDonneesMoine(){
 }
 // Index des affectations par moine (reconstruit après chaque sauvegarde ou ajout) — l'historique
 // depuis 2019 compte ~12 000 lignes, on évite de tout parcourir à chaque calcul
-let _affIdx = null, _affIdxLen = -1;
+let _affIdx = null, _affIdxLen = -1, _nomIdx = null, _homIdx = null;
 function affsDe(mid){
   if (!_affIdx || _affIdxLen !== state.affectations.length){
     _affIdx = new Map(); _affIdxLen = state.affectations.length;
+    _nomIdx = new Map(); _homIdx = new Map();
     for (const a of state.affectations){
-      if (!a.moineId) continue;
+      if (!a.moineId){
+        // cases à nom libre (« invité », fiche supprimée) : indexées par nom normalisé
+        if (a.nomLibre) { const n = normNom(a.nomLibre); let l = _nomIdx.get(n); if (!l) { l = []; _nomIdx.set(n, l); } l.push(a); }
+        continue;
+      }
       let l = _affIdx.get(a.moineId); if (!l) { l = []; _affIdx.set(a.moineId, l); }
       l.push(a);
     }
+    for (const m of state.moines){
+      const n = normNom(m.nom); let l = _homIdx.get(n); if (!l) { l = []; _homIdx.set(n, l); } l.push(m.id);
+    }
   }
   return _affIdx.get(mid) || [];
+}
+/* Historique d'une PERSONNE (dernière fois, nombre sur 12 mois) : les cases de sa fiche, mais aussi
+   celles d'une autre fiche portant exactement le même nom (doublon, ancienne fiche de l'archive)
+   et celles saisies en nom libre à ce nom. Sur la feuille, c'est le même frère : sans cela, l'appli
+   ne voyait que la partie de l'historique rattachée à l'une des fiches (P. Louis-Marie, nov. 2026 :
+   « rendu la semaine du 1 mars » alors qu'il avait été hebdomadier la semaine du 30 août). */
+function affsHisto(mid){
+  const propres = affsDe(mid);
+  const m = monkById(mid);
+  if (!m) return propres;
+  const n = normNom(m.nom);
+  const homs = (_homIdx.get(n) || []).filter(id => id !== mid), libres = _nomIdx.get(n) || [];
+  if (!homs.length && !libres.length) return propres;
+  return propres.concat(...homs.map(id => affsDe(id)), libres);
+}
+// Identifiants d'affectation uniques (un doublon ferait disparaître une case de l'historique quand
+// l'autre est exclue d'un calcul) et compteur toujours au-delà du plus grand identifiant existant
+function reparerIdsAffectations(){
+  const vus = new Set();
+  let max = 0;
+  for (const a of state.affectations){ const k = parseInt(String(a.id).slice(1), 10); if (k > max) max = k; }
+  let n = 0;
+  for (const a of state.affectations){
+    if (vus.has(a.id)) { a.id = 'a' + (++max); n++; }
+    vus.add(a.id);
+  }
+  if (!(state.seq.affect > max)) state.seq.affect = max + 1;
+  if (n) _affIdx = null;
+  return n;
 }
 function migrate(){
   if (!state.feteStyles) state.feteStyles = defaultFeteStyles();
@@ -582,6 +643,7 @@ function migrate(){
       + `(3 semaines : serviteur de table / d'église ; 2 semaines : lecteur de table, hebdomadier, lecteur) ; `
       + `un seul service hebdomadaire par frère et par semaine ; samedis sans fête notés « BVM ».`;
   }
+  reparerIdsAffectations();
   state.version = 18;
 }
 const SERVICES_FRANCOPHONES = ['hebdomadier','lecteur','lecteur2','chantre_pu','chantre_pu2','lecteur_table','epitre'];
@@ -701,6 +763,7 @@ function load(){
     if (raw) { state = JSON.parse(raw); migrate(); save(); return; }
   } catch(e) { console.error(e); }
   state = seedState();
+  state.donneesDepart = true;   // rien encore chargé sur cet ordinateur à cette adresse (voir choisirDossierSauv)
   migrate();
   save();
 }
@@ -1043,7 +1106,7 @@ function findAssign(serviceId, semaine, date){
 function keyOf(a){ return a.date || a.semaine; }
 function countService(mid, sid, from, to, excludeId){
   const ids = sid === null ? null : groupeIds(sid);
-  return affsDe(mid).filter(a =>
+  return affsHisto(mid).filter(a =>
     (ids === null || ids.includes(a.serviceId)) &&
     a.id !== excludeId && keyOf(a) >= from && keyOf(a) < to).length;
 }
@@ -1238,7 +1301,7 @@ const EQUITE_TABLE = ['st2','st3','st4','st5','st_soupe','st_soupe2','st_soupe3'
 function dernierProchain(mid, sid, refKey, excludeId, idsOverride){
   let dernier = null, prochain = null;
   const ids = idsOverride || groupeIds(sid);
-  for (const a of affsDe(mid)){
+  for (const a of affsHisto(mid)){
     if (!ids.includes(a.serviceId) || a.id === excludeId) continue;
     const k = keyOf(a);
     if (k <= refKey) { if (!dernier || k > dernier) dernier = k; }
@@ -1410,7 +1473,11 @@ function render(){
   const r = { planning: renderPlanning, agenda: renderAgenda, moines: renderMoines, fetes: renderStylesFetes,
               vaisselle: renderVaisselle, stats: renderStats, reglages: renderReglages }[state.ui.tab] || renderPlanning;
   // Onglet Planning : aucun bandeau (résultats de « Vider », « Remplir », migrations…) — la grille suffit
-  $('#main').innerHTML = (bannerMsg && state.ui.tab !== 'planning' ? `<div class="banner">${bannerMsg}</div>` : '') + r();
+  // Navigateur sans données à cette adresse : avertissement permanent, sur tous les onglets, jusqu'à l'import
+  const depart = state.donneesDepart ? `<div class="banner"><b class="rouge">⚠ Aucune donnée enregistrée dans ce navigateur à cette adresse :
+    ce sont les données de départ, pas le travail habituel.</b> Pour le retrouver : Réglages → « Importer une sauvegarde » →
+    le fichier tableau-officiers-… .json le plus récent du dossier OneDrive « Tableau des officiers ».</div>` : '';
+  $('#main').innerHTML = depart + (bannerMsg && state.ui.tab !== 'planning' ? `<div class="banner">${bannerMsg}</div>` : '') + r();
   bannerMsg = '';
 }
 function setTab(t){
@@ -2667,6 +2734,7 @@ function remplacerDonnees(data){
   const sauvLocale = state && state.settings ? state.settings.sauvAuto : undefined;
   const consultLocale = state && state.settings ? state.settings.dossierMoine : undefined;
   state = data;
+  delete state.donneesDepart;
   if (!state.settings) state.settings = {};
   state.settings.sauvAuto = sauvLocale;
   state.settings.dossierMoine = consultLocale;
@@ -3496,6 +3564,8 @@ function proposerSauvAuto(){
   dans un dossier de cet ordinateur, après chaque modification. Les 10 derniers jours sont conservés.</p>
   <p class="hint">Conseil : choisir un dossier situé dans OneDrive, Google Drive ou Dropbox — la copie part alors
   aussi sur le cloud et survit à une panne de l'ordinateur.</p>
+  ${state.donneesDepart ? `<p class="rouge"><b>Déjà utilisée sur cet ordinateur ?</b> Choisir le MÊME dossier qu'avant
+  (OneDrive « Tableau des officiers ») : l'application proposera d'y recharger la dernière sauvegarde.</p>` : ''}
   <div class="modalActions">
     <button class="btn" onclick="closeModal();choisirDossierSauv()">Choisir le dossier…</button>
     <button class="btn secondary" onclick="closeModal()">Plus tard</button>
