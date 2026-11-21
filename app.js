@@ -223,7 +223,7 @@ function seedState(){
 /* ================= Persistance / migration ================= */
 const LS_KEY = 'planning-moines-v1';
 let state = null;
-function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(state)); planifierSauvAuto(); }
+function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(state)); planifierSauvAuto(); planifierCloud(); }
 
 /* ===== Sauvegarde automatique dans un dossier (API File System Access — Chrome / Edge) =====
    Le dossier est choisi une fois (idéalement un dossier OneDrive / Drive / Dropbox : le fichier part
@@ -345,16 +345,23 @@ async function amorcerSauvAuto(){
 // Petit badge fixe en bas à droite : uniquement si la sauvegarde automatique a un problème
 function majChipSauv(){
   let el = document.getElementById('sauvChip');
-  const o = state.settings && state.settings.sauvAuto;
-  const souci = o && o.actif && sauvEtat.ok === false;
-  if (!souci){ if (el) el.remove(); return; }
+  let html = '', action = null;
+  if (!cloudActif()){
+    html = `☁ Sauvegarde en ligne non activée sur cet ordinateur — <b>Réglages</b>`;
+    action = () => setTab('reglages');
+  } else if (cloudEtat.ok === false && !cloudBusy){
+    html = `☁ Sauvegarde en ligne en attente — <b>cliquer pour réessayer</b> <span class="hint">(${esc(cloudEtat.msg)})</span>`;
+    action = () => cloudSync();
+  }
+  // (la copie facultative dans un dossier n'a plus de badge : son état reste visible dans Réglages)
+  if (!html){ if (el) el.remove(); return; }
   if (!el){
     el = document.createElement('div');
     el.id = 'sauvChip';
     document.body.appendChild(el);
   }
-  el.innerHTML = `💾 Sauvegarde automatique en attente — <b>cliquer pour réactiver</b> <span class="hint">(${esc(sauvEtat.msg)})</span>`;
-  el.onclick = reactiverSauvAuto;
+  el.innerHTML = html;
+  el.onclick = action;
 }
 function sauvEtatHTML(){
   const o = state.settings && state.settings.sauvAuto;
@@ -366,6 +373,238 @@ function sauvEtatHTML(){
   else s += ` <span class="hint">En attente de la première modification.</span>`;
   return s;
 }
+/* ===== Sauvegarde en ligne (dépôt GitHub privé) =====
+   Copie de référence des données, avec l'historique complet : chaque envoi est une version datée
+   dans le dépôt privé CLOUD_REPO (fichier donnees.json), gardée pour toujours et restaurable depuis
+   Réglages. Le navigateur garde la copie de travail (l'appli marche hors ligne) ; l'envoi part tout
+   seul une minute après la dernière modification. Un autre ordinateur (ou un navigateur vidé) recharge
+   tout depuis GitHub à l'ouverture. La clé d'accès n'est JAMAIS dans les données : elle reste dans ce
+   navigateur seulement (localStorage, clé CLOUD_KEY), jamais exportée ni envoyée ailleurs qu'à GitHub.
+   Une surveillance quotidienne dans le dépôt de données envoie un e-mail si les envois s'arrêtent. */
+const CLOUD_KEY = 'tableau-officiers-cloud';
+const CLOUD_REPO_DEFAUT = 'henriclamaLockroy/tableau-officiers-donnees';
+const CLOUD_FICHIER = 'donnees.json';
+const CLOUD_DELAI = 60000;   // envoi une minute après la dernière modification
+let cloudTimer = null, cloudBusy = false, cloudRelance = false;
+let cloudEtat = { ok: null, quand: null, msg: '' };
+function cloudCfg(){ try { return JSON.parse(localStorage.getItem(CLOUD_KEY) || 'null'); } catch(e){ return null; } }
+function cloudSetCfg(c){ try { if (c) localStorage.setItem(CLOUD_KEY, JSON.stringify(c)); else localStorage.removeItem(CLOUD_KEY); } catch(e){} }
+const cloudActif = () => { const c = cloudCfg(); return !!(c && c.token && c.repo); };
+// Ce qui est envoyé : toutes les données, sans l'état d'affichage ni les réglages propres à cet ordinateur
+function cloudPayload(){
+  const c = JSON.parse(JSON.stringify(state));
+  delete c.ui; delete c.donneesDepart;
+  if (c.settings){ delete c.settings.sauvAuto; delete c.settings.dossierMoine; }
+  return JSON.stringify(c);
+}
+async function cloudHash(texte){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texte));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function cloudBase64(texte){
+  const bytes = new TextEncoder().encode(texte);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+class CloudErreur extends Error { constructor(msg, status){ super(msg); this.status = status; } }
+async function cloudApi(method, chemin, corps, accept){
+  const c = cloudCfg();
+  let r;
+  try {
+    r = await fetch('https://api.github.com/repos/' + c.repo + chemin, {
+      method, cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + c.token, 'Accept': accept || 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28',
+                 ...(corps ? { 'Content-Type': 'application/json' } : {}) },
+      body: corps ? JSON.stringify(corps) : undefined,
+    });
+  } catch(e){ throw new CloudErreur('pas de connexion internet (les données restent dans ce navigateur, envoi dès le retour du réseau)', 0); }
+  const exp = r.headers.get('github-authentication-token-expiration');
+  if (exp && c.expire !== exp) { c.expire = exp; cloudSetCfg(c); }
+  if (r.ok) return accept && accept.includes('raw') ? r.text() : r.json();
+  let detail = ''; try { detail = (await r.json()).message || ''; } catch(e){}
+  if (r.status === 401) throw new CloudErreur('clé d’accès refusée ou expirée — demander une nouvelle clé à Henri', 401);
+  if (r.status === 403 && /rate limit/i.test(detail)) throw new CloudErreur('trop de requêtes, nouvel essai plus tard', 403);
+  if (r.status === 403 || r.status === 404) throw new CloudErreur('dépôt introuvable ou clé sans accès à « ' + c.repo + ' »', r.status);
+  throw new CloudErreur('erreur GitHub ' + r.status + (detail ? ' (' + detail + ')' : ''), r.status);
+}
+async function cloudTete(){
+  try { return (await cloudApi('GET', '/git/ref/heads/main')).object.sha; }
+  catch(e){ if (e.status === 404 || e.status === 409) return null; throw e; }
+}
+// Contenu de donnees.json à une version donnée (null si le fichier n'existe pas encore)
+async function cloudLire(ref){
+  try { return await cloudApi('GET', '/contents/' + CLOUD_FICHIER + '?ref=' + ref, null, 'application/vnd.github.raw+json'); }
+  catch(e){ if (e.status === 404) return null; throw e; }
+}
+// Nouvelle version : blob → arbre → commit → avancée de la branche (refusée si quelqu'un a envoyé entre-temps)
+async function cloudEcrire(texte, parent, message, chemin){
+  const blob = await cloudApi('POST', '/git/blobs', { content: cloudBase64(texte), encoding: 'base64' });
+  const base = await cloudApi('GET', '/git/commits/' + parent);
+  const arbre = await cloudApi('POST', '/git/trees', { base_tree: base.tree.sha, tree: [{ path: chemin || CLOUD_FICHIER, mode: '100644', type: 'blob', sha: blob.sha }] });
+  const commit = await cloudApi('POST', '/git/commits', { message, tree: arbre.sha, parents: [parent] });
+  await cloudApi('PATCH', '/git/refs/heads/main', { sha: commit.sha, force: false });
+  return commit.sha;
+}
+const cloudHorodatage = () => { const d = new Date(); return d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }); };
+function planifierCloud(){
+  if (!cloudActif()) return;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(() => { cloudTimer = null; cloudSync(); }, CLOUD_DELAI);
+}
+// Remplace les données par une version venue de GitHub, en gardant l'affichage de cet ordinateur
+function cloudAppliquer(texte){
+  const data = JSON.parse(texte);
+  if (!data.moines || !data.services) throw new CloudErreur('fichier en ligne illisible', 0);
+  data.ui = state.ui;
+  remplacerDonnees(data);
+  clearTimeout(cloudTimer); cloudTimer = null;   // pas d'envoi déclenché par ce chargement lui-même
+}
+/* Synchronisation : compare la version en ligne (tête) à celle sur laquelle cet ordinateur est basé.
+   - rien n'a bougé en ligne : on envoie si les données locales ont changé ;
+   - en ligne a bougé et rien en local (ou données de départ) : on charge la version en ligne ;
+   - les deux ont bougé : on demande laquelle garder ; l'autre reste dans l'historique. */
+async function cloudSync(opts){
+  opts = opts || {};
+  if (!cloudActif()) return;
+  if (cloudBusy) { cloudRelance = true; return; }
+  cloudBusy = true; majChipSauv();
+  try {
+    const c = cloudCfg();
+    const tete = await cloudTete();
+    if (!tete) throw new CloudErreur('dépôt de données vide ou introuvable', 404);
+    const texte = cloudPayload(), h = await cloudHash(texte);
+    const modifLocale = !state.donneesDepart && h !== c.hash;
+    let rendre = false;
+    if (tete !== c.base){
+      const distant = await cloudLire(tete);
+      if (distant === null){
+        // Dépôt sans données encore : le premier ordinateur connecté avec de vraies données les envoie
+        if (state.donneesDepart) throw new CloudErreur('aucune donnée en ligne pour l’instant : connecter d’abord l’ordinateur habituel', 0);
+        const sha = await cloudEcrire(texte, tete, 'Première sauvegarde en ligne — ' + cloudHorodatage());
+        Object.assign(c, { base: sha, hash: h }); cloudSetCfg(c);
+      } else if ((await cloudHash(distant)) === h){
+        Object.assign(c, { base: tete, hash: h }); cloudSetCfg(c);   // mêmes données des deux côtés
+      } else if (!modifLocale){
+        const hd = await cloudHash(distant);
+        cloudAppliquer(distant);
+        // base = version en ligne ; si cette version de l'appli a mis la structure à jour, l'écart sera renvoyé
+        Object.assign(c, { base: tete, hash: hd }); cloudSetCfg(c);
+        planifierCloud();
+        bannerMsg = 'Données mises à jour depuis la sauvegarde en ligne.'; rendre = true;
+      } else {
+        const garderLocal = confirm('Les données ont été modifiées sur un autre ordinateur ET sur celui-ci depuis le dernier envoi.\n\n'
+          + 'OK = garder les données de CET ordinateur.\nAnnuler = charger celles de l’autre ordinateur.\n\n'
+          + 'Rien n’est perdu : l’autre version reste dans l’historique des sauvegardes (Réglages).');
+        if (garderLocal){
+          const sha = await cloudEcrire(texte, tete, 'Sauvegarde du ' + cloudHorodatage() + ' (gardée après modification sur deux ordinateurs)');
+          Object.assign(c, { base: sha, hash: h }); cloudSetCfg(c);
+        } else {
+          // la version de cet ordinateur est rangée à part dans l'historique avant de charger l'autre
+          const sha = await cloudEcrire(texte, tete, 'Version écartée de cet ordinateur — ' + cloudHorodatage(), 'versions-ecartees/' + todayISO() + '-' + Date.now() + '.json');
+          cloudAppliquer(distant);
+          Object.assign(c, { base: sha, hash: await cloudHash(distant) }); cloudSetCfg(c);
+          planifierCloud();
+          bannerMsg = 'Données de l’autre ordinateur chargées.'; rendre = true;
+        }
+      }
+    } else if (modifLocale){
+      const sha = await cloudEcrire(texte, tete, opts.message || ('Sauvegarde du ' + cloudHorodatage()));
+      Object.assign(c, { base: sha, hash: h }); cloudSetCfg(c);
+    }
+    const c2 = cloudCfg(); c2.dernierOk = new Date().toISOString();
+    // Signal de vie, une fois par jour d'ouverture (fichier pouls.json, hors historique des données) : la
+    // surveillance quotidienne du dépôt alerte Henri par e-mail s'il n'arrive plus
+    if (c2.pouls !== todayISO() && c2.base){
+      const t = await cloudTete();
+      if (t === c2.base){
+        c2.base = await cloudEcrire(JSON.stringify({ date: new Date().toISOString(), application: APP_BUILD }) + '\n', t,
+          'Application ouverte — ' + cloudHorodatage(), 'pouls.json');
+        c2.pouls = todayISO();
+      }
+    }
+    cloudSetCfg(c2);
+    cloudEtat = { ok: true, quand: new Date(), msg: '' };
+    if (rendre) render();
+  } catch(e){
+    if (e && e.status === 422) cloudRelance = true;   // quelqu'un a envoyé entre-temps : on recommence (conflit traité au tour suivant)
+    cloudEtat = { ok: false, quand: new Date(), msg: (e && e.message) || String(e) };
+  } finally {
+    cloudBusy = false;
+    majChipSauv();
+    if (state.ui.tab === 'reglages'){ const el = $('#cloudEtatLigne'); if (el) el.innerHTML = cloudEtatHTML(); }
+    if (cloudRelance){ cloudRelance = false; setTimeout(() => cloudSync(), 2000); }
+  }
+}
+const cloudEnAttente = () => cloudActif() && (cloudTimer !== null || cloudBusy);
+function cloudEtatHTML(){
+  const c = cloudCfg();
+  if (!c || !c.token) return `<span class="rouge">Non activée sur cet ordinateur.</span>`;
+  let s = `Dépôt : <b>${esc(c.repo)}</b>.`;
+  if (cloudBusy) s += ` <span class="hint">Envoi en cours…</span>`;
+  else if (cloudEtat.ok === false) s += ` <span class="rouge">Problème : ${esc(cloudEtat.msg)}</span>`;
+  else if (cloudTimer) s += ` <span class="hint">Modifications en attente d'envoi (dans moins d'une minute).</span>`;
+  if (c.dernierOk) s += ` <span style="color:#2e7d32">Dernière synchronisation réussie : ${esc(new Date(c.dernierOk).toLocaleString('fr-FR', { dateStyle:'short', timeStyle:'short' }))}.</span>`;
+  if (c.expire){
+    const j = Math.round((new Date(c.expire.replace(' UTC', 'Z').replace(' ', 'T')) - new Date()) / 86400000);
+    if (j < 45) s += ` <span class="rouge">La clé d'accès expire dans ${j} jour${j > 1 ? 's' : ''} : demander une nouvelle clé à Henri.</span>`;
+  }
+  return s;
+}
+async function cloudConnecter(){
+  const token = ($('#cloudToken').value || '').trim(), repo = ($('#cloudRepo').value || CLOUD_REPO_DEFAUT).trim();
+  if (!token) { alert('Coller la clé d’accès reçue d’Henri.'); return; }
+  const ancien = cloudCfg();
+  cloudSetCfg({ token, repo, base: null, hash: null });
+  try { await cloudApi('GET', ''); }
+  catch(e){ cloudSetCfg(ancien); alert('Connexion impossible : ' + e.message); return; }
+  cloudEtat = { ok: null, quand: null, msg: '' };
+  bannerMsg = 'Sauvegarde en ligne activée sur cet ordinateur.';
+  render();
+  await cloudSync();
+  render();
+}
+function cloudDeconnecter(){
+  if (!confirm('Arrêter la sauvegarde en ligne sur cet ordinateur ?\n(Les données restent dans ce navigateur et en ligne ; il faudra la clé d’accès pour reconnecter.)')) return;
+  clearTimeout(cloudTimer); cloudTimer = null;
+  cloudSetCfg(null); cloudEtat = { ok: null, quand: null, msg: '' };
+  render(); majChipSauv();
+}
+async function cloudHistorique(){
+  openModal(`<h3>Historique des sauvegardes en ligne</h3><p class="hint">Chargement…</p>`);
+  try {
+    const liste = await cloudApi('GET', '/commits?path=' + CLOUD_FICHIER + '&per_page=100');
+    const lignes = liste.map(x => {
+      const d = new Date(x.commit.committer.date);
+      return `<tr><td>${esc(d.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short', year:'numeric' }))} à ${esc(d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }))}</td>
+        <td class="hint">${esc(x.commit.message.split('\n')[0])}</td>
+        <td><button class="btn small secondary" onclick="cloudRestaurer('${x.sha}','${esc(d.toLocaleString('fr-FR', { dateStyle:'short', timeStyle:'short' }))}')">Revenir à cette version</button></td></tr>`;
+    }).join('');
+    openModal(`<h3>Historique des sauvegardes en ligne</h3>
+      <p class="hint">Chaque envoi est gardé pour toujours (les 100 plus récents sont listés ici). Revenir à une version
+      remplace les données actuelles ; la version actuelle reste elle aussi dans l'historique.</p>
+      <div style="max-height:60vh;overflow:auto"><table class="grid"><tr><th>Date</th><th>Envoi</th><th></th></tr>${lignes || '<tr><td colspan="3">Aucune sauvegarde pour l’instant.</td></tr>'}</table></div>
+      <div class="modalActions"><button class="btn secondary" onclick="closeModal()">Fermer</button></div>`);
+  } catch(e){
+    openModal(`<h3>Historique des sauvegardes en ligne</h3><p class="rouge">${esc(e.message)}</p>
+      <div class="modalActions"><button class="btn secondary" onclick="closeModal()">Fermer</button></div>`);
+  }
+}
+async function cloudRestaurer(sha, quand){
+  if (!confirm('Remplacer toutes les données par la sauvegarde du ' + quand + ' ?\nLa version actuelle reste dans l’historique.')) return;
+  try {
+    clearTimeout(cloudTimer); cloudTimer = null;
+    await cloudSync();                       // d'abord, mettre en ligne ce qui ne l'est pas encore
+    if (cloudEtat.ok === false) throw new Error(cloudEtat.msg);
+    const texte = await cloudLire(sha);
+    if (texte === null) throw new Error('version introuvable');
+    cloudAppliquer(texte);
+    await cloudSync({ message: 'Retour à la version du ' + quand + ' (le ' + cloudHorodatage() + ')' });
+    bannerMsg = 'Données revenues à la version du ' + esc(quand) + '.';
+    closeModal();
+  } catch(e){ alert('Restauration impossible : ' + (e.message || e)); }
+}
+
 /* ===== Consultation des données d'un autre ordinateur (dossier de sauvegarde partagé) =====
    Sur le PC de suivi : on désigne une fois le dossier OneDrive partagé où l'autre ordinateur dépose
    ses sauvegardes automatiques, puis « Recharger » importe le fichier le plus récent (remplace tout,
@@ -1531,8 +1770,8 @@ function render(){
   // Onglet Planning : aucun bandeau (résultats de « Vider », « Remplir », migrations…) — la grille suffit
   // Navigateur sans données à cette adresse : avertissement permanent, sur tous les onglets, jusqu'à l'import
   const depart = state.donneesDepart ? `<div class="banner"><b class="rouge">⚠ Aucune donnée enregistrée dans ce navigateur à cette adresse :
-    ce sont les données de départ, pas le travail habituel.</b> Pour le retrouver : Réglages → « Importer une sauvegarde » →
-    le fichier tableau-officiers-… .json le plus récent du dossier OneDrive « Tableau des officiers ».</div>` : '';
+    ce sont les données de départ, pas le travail habituel.</b> Pour le retrouver : Réglages → « Sauvegarde en ligne » → coller la clé d'accès donnée par Henri :
+    les données se rechargent toutes seules.</div>` : '';
   $('#main').innerHTML = depart + (bannerMsg && state.ui.tab !== 'planning' ? `<div class="banner">${bannerMsg}</div>` : '') + r();
   bannerMsg = '';
 }
@@ -2694,10 +2933,26 @@ function renderReglages(){
   }
   html += `</table>
   <div style="margin-top:8px"><button class="btn secondary" onclick="editService(null)">+ Ajouter un service</button></div></div>
+  <div class="card"><h3>☁ Sauvegarde en ligne</h3>
+    <p class="hint">Les données sont envoyées automatiquement dans un dépôt privé sur GitHub, une minute après chaque
+    modification. Chaque envoi est gardé pour toujours : on peut revenir à n'importe quelle version passée.
+    Un autre ordinateur (ou ce navigateur s'il est vidé) retrouve tout en collant la même clé d'accès.</p>
+    <p><b>État :</b> <span id="cloudEtatLigne">${cloudEtatHTML()}</span></p>
+    ${cloudActif() ? `<div class="modalActions" style="margin-top:0">
+      <button class="btn" onclick="clearTimeout(cloudTimer);cloudTimer=null;cloudSync()">⟳ Envoyer maintenant</button>
+      <button class="btn secondary" onclick="cloudHistorique()">Historique des sauvegardes…</button>
+      <button class="btn ghost" onclick="cloudDeconnecter()">Déconnecter cet ordinateur</button>
+    </div>` : `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <label>Clé d'accès <input id="cloudToken" type="password" autocomplete="off" placeholder="github_pat_…" style="width:260px"></label>
+      <label>Dépôt <input id="cloudRepo" value="${esc(CLOUD_REPO_DEFAUT)}" style="width:260px"></label>
+      <button class="btn" onclick="cloudConnecter()">Connecter</button>
+    </div>
+    <p class="hint">La clé est donnée par Henri. Elle reste dans ce navigateur et n'est jamais incluse dans les exports.</p>`}
+  </div>
   <div class="card"><h3>Données</h3>
-    <p class="hint">Les données sont enregistrées automatiquement dans ce navigateur.
-    La sauvegarde automatique en dépose en plus une copie datée dans un dossier de l'ordinateur.</p>
-    <p><b>Sauvegarde automatique :</b> <span id="sauvEtatLigne">${sauvEtatHTML()}</span></p>
+    <p class="hint">Les données sont enregistrées automatiquement dans ce navigateur, et en ligne si la sauvegarde
+    en ligne est activée. La copie dans un dossier de l'ordinateur ci-dessous est facultative.</p>
+    <p><b>Copie dans un dossier (facultatif) :</b> <span id="sauvEtatLigne">${sauvEtatHTML()}</span></p>
     ${sauvDispo() ? `<div class="modalActions" style="margin-top:0">
       <button class="btn secondary" onclick="choisirDossierSauv()">${state.settings.sauvAuto && state.settings.sauvAuto.actif ? 'Changer de dossier…' : 'Choisir le dossier…'}</button>
       ${state.settings.sauvAuto && state.settings.sauvAuto.actif ? `<button class="btn ghost" onclick="desactiverSauvAuto()">Désactiver</button>` : ''}
@@ -3626,9 +3881,15 @@ window.addEventListener('DOMContentLoaded', () => {
   render();
   // Sauvegarde automatique : confirmation d'accès au dossier au premier clic de la session
   document.addEventListener('click', amorcerSauvAuto, { once: true, capture: true });
-  // Proposer l'activation une fois par session tant qu'elle n'est pas en place (sauf refus définitif)
-  if (sauvDispo() && !(state.settings.sauvAuto && (state.settings.sauvAuto.actif || state.settings.sauvAuto.refus)))
-    proposerSauvAuto();
+  // Sauvegarde en ligne : synchronisation à l'ouverture, au retour sur l'onglet et au retour du réseau
+  // (la copie dans un dossier OneDrive n'est plus proposée : elle reste disponible dans Réglages)
+  majChipSauv();
+  if (cloudActif()) cloudSync();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && cloudActif() && !cloudTimer) cloudSync(); });
+  window.addEventListener('online', () => { if (cloudActif()) cloudSync(); });
+  // Fermeture pendant qu'un envoi attend : le navigateur demande confirmation (les données restent de toute façon
+  // dans ce navigateur et partiront à la prochaine ouverture)
+  window.addEventListener('beforeunload', e => { if (cloudEnAttente()) { e.preventDefault(); e.returnValue = ''; } });
 });
 function proposerSauvAuto(){
   openModal(`<h3>💾 Sauvegarde automatique</h3>
