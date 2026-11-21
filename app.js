@@ -231,7 +231,7 @@ function save(){ _affIdx = null; localStorage.setItem(LS_KEY, JSON.stringify(sta
    plus tard ; les 10 derniers jours sont conservés. L'accès au dossier (« handle ») ne peut pas être
    mémorisé dans localStorage : il est gardé dans IndexedDB. Selon les réglages du navigateur, une
    confirmation d'accès peut être redemandée à chaque session : on la déclenche au premier clic. */
-const APP_BUILD = '2026-11-19';
+const APP_BUILD = '2026-11-21';
 const sauvDispo = () => !!window.showDirectoryPicker;
 let sauvTimer = null, sauvEtat = { ok: null, quand: null, msg: '' };
 function fsdb(){
